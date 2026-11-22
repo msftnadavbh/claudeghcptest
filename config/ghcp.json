@@ -1,0 +1,23 @@
+{
+  "inferenceProvider": "gateway",
+  "inferenceGatewayBaseUrl": "https://api.githubcopilot.com",
+  "inferenceGatewayAuthScheme": "bearer",
+  "inferenceCredentialKind": "helper-script",
+  "inferenceCredentialHelper": "@GH@",
+  "inferenceCredentialHelperArgs": ["auth", "token", "--hostname", "github.com"],
+  "inferenceCredentialHelperTtlSec": 3600,
+  "inferenceCredentialHelperTimeoutSec": 60,
+  "inferenceModels": ["claude-opus-5.5", "claude-sonnet-5.5", "claude-haiku-5.5", "claude-sonnet-5", "claude-haiku-4.5"],
+  "modelDiscoveryEnabled": false,
+  "inferenceGatewayAutoModeServerChecks": false,
+  "managedMcpServers": [{
+    "name": "github",
+    "transport": "http",
+    "url": "https://api.githubcopilot.com/mcp/readonly",
+    "headers": {"X-MCP-Toolsets": "web_search"},
+    "headersHelper": "@MCP_HELPER@",
+    "headersHelperArgs": ["@GH@"],
+    "headersHelperTtlSec": 300
+  }],
+  "disableDeepLinkRegistration": true
+}
