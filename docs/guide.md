@@ -1,81 +1,72 @@
 # Setup and configuration guide
 
-This project configures Claude Desktop's **third-party Gateway mode** to use GitHub Copilot inference. It prepares a separate local profile and obtains credentials from GitHub CLI at runtime. The [validation record](validation.md) distinguishes tested behavior from remaining limitations.
+Switch your installed Claude Desktop to **third-party Gateway mode** using GitHub Copilot inference and your GitHub CLI sign-in. The [validation record](validation.md) distinguishes tested behavior from remaining limitations.
 
 ## Setup
 
-Install Claude Desktop at `/Applications/Claude.app`, Python **3 (tested with 3.15)** as `python3`, and GitHub CLI as `gh`. All executable Python entry points use `#!/usr/bin/env python3`. Desktop augments its helper PATH with the login-shell PATH and common installation locations, including Homebrew; Python must be available there as well as in your terminal.
-
-Keep this checkout in a stable location, such as `~/src/claude-ghcp-desktop`, outside Desktop, Documents, Downloads, iCloud Drive, and CloudStorage. macOS privacy controls can block helpers in protected folders. Rendering rejects recognized protected helper locations. Moving the checkout later requires reinstalling the configuration because helper paths are absolute.
+You need macOS, Claude Desktop, Python **3 (tested with 3.15)** as `python3`, and GitHub CLI as `gh`, with Copilot inference access. Keep this checkout in a stable location such as `~/src/claude-ghcp-desktop`, outside Desktop, Documents, Downloads, iCloud Drive and CloudStorage: macOS privacy controls can block helpers there. Python must be available to Desktop's helper environment as well as your terminal.
 
 ### 1. Select your GitHub account
 
-```sh
-gh auth status --hostname github.com
-```
-
-If you are not signed in, use `gh auth login --hostname github.com`. With multiple accounts, select the intended active account:
+Run `gh auth status --hostname github.com`. If needed, sign in with `gh auth login --hostname github.com`. For multiple accounts:
 
 ```sh
 gh auth switch --hostname github.com --user YOUR_GITHUB_USERNAME
 ```
 
-The helper uses `gh auth token --hostname github.com`, which selects the active account. GitHub CLI environment-token overrides also apply. The installer runs this same token command with stdout and stderr discarded before writing any configuration. It does not reject an otherwise working active account because another stored account fails `gh auth status`. Retrieving a token does not prove that the account has Copilot inference entitlement; a real request is needed to establish that.
+The installer resolves an absolute executable path and checks `gh auth token --hostname github.com`, discarding stdout and stderr. Environment-token overrides still apply. Token retrieval does not prove inference entitlement. You can override executable discovery with `./install --gh /absolute/path/to/gh`.
 
-### 2. Prepare an isolated profile
+### 2. Quit Desktop and install
 
-From the checkout:
+From the checkout, run:
 
 ```sh
-scripts/render-config
-scripts/install-isolated "$HOME/claude-ghcp-test/Isolated-3p"
+./install
 ```
 
-Rendering prints valid JSON with resolved absolute paths and does not obtain credentials. Pass `--gh /absolute/path/to/gh` to rendering or installation if you need to override executable discovery. Installation checks the credential command, creates a new configuration UUID, preserves existing library entries, and saves a metadata backup **only when `_meta.json` already exists**, before selecting the new entry.
+To see the planned paths, backup, complete configuration, merged metadata, and state without writing, use `./install --dry-run`. Dry-run still checks process state, MDM and authentication. Both entry points offer `--help`.
 
-The profile name must end in **`-3p`**. Choose a directory outside the normal `~/Library/Application Support/Claude*` profiles and shared Claude Code configuration. The isolated-path guards reject those profile locations and resolved symlink aliases.
+Only `~/Library/Application Support/Claude-3p/configLibrary` is configured. Desktop derives that location from its default user-data directory (`Claude`) plus `-3p`. The installer does not move, copy or replace your profile; it does not change the first-party `Claude` folder, either `claude_desktop_config.json`, `~/.claude`, or `~/.claude.json`. First-party history is not migrated into third-party mode.
 
-### 3. Launch alongside your normal app
+The installer refuses while a main Desktop process uses the default profile. It recognizes main executables in `/Applications`, your Applications folder, and renamed bundles or other installation locations. Explicit isolated instances using a different absolute `--user-data-dir` are allowed. Missing, repeated, relative or unreadable profile arguments fail closed; Helper-only process rows are ignored. Both the base default user-data path and its `-3p` variant are protected, including case aliases.
 
-The lifecycle tools require an already-running normal Claude main process to protect. Find its PID using Activity Monitor or `ps -axo pid,command`. Identify the main `/Applications/Claude.app/Contents/MacOS/Claude` process, not a Helper or your isolated process. Replace the placeholder below with that PID:
+**MDM:** Installation and removal refuse if `/Library/Managed Preferences/com.anthropic.claudefordesktop.plist` or the corresponding per-user managed plist exists. Those settings override the local library; contact your administrator. There is no force override.
+
+### 3. Open Desktop
+
+Open Claude Desktop normally. It starts in third-party mode on GitHub Copilot. Choose **Continue** if prompted, pick a model and chat. Keep this checkout in place because its MCP helper is referenced by absolute path. Re-running `./install` updates this installer's existing UUID instead of adding another entry.
+
+## Configuration and backups
+
+The library contains:
 
 ```text
-scripts/launch-isolated "$HOME/claude-ghcp-test/Isolated-3p" --protect-pid <PID of your normal Claude>
+configLibrary/<uuid>.json
+configLibrary/_meta.json
+configLibrary/.ghcp-state.json
 ```
 
-The command prints the new main PID and launches Desktop directly with `--user-data-dir=<profile>` and `CLAUDE_CONFIG_DIR=<profile>/claude-code`. In the new instance's gateway welcome screen, choose **Continue**, then send a short chat. Its default model is `claude-opus-5.5`.
+The UUID file contains flat settings rendered from `config/ghcp.json`. The installer preserves existing metadata fields and entries, adds or updates its GitHub Copilot entry, and selects it with `appliedId`. Existing fields on that entry are also preserved. Versioned state records its UUID, a matching metadata ownership marker, the canonical library path, known configuration hashes, the original selector (including whether it was absent), whether the library and metadata existed, the original backup path and UTC timestamp. UI entry renames and deletion are supported; a replaced/edited owned file, missing ownership marker, or corrupt/incomplete/copied/older-version state causes a clear refusal with a backup recovery pointer. State is not adopted by display name or silently migrated from older schemas. Do not edit or delete state while the installation is active; use config-library-only backup recovery if it is damaged.
 
-Use the exact PID and window identity when automating the UI; application name and bundle ID are shared by both instances. Do not send input to an unverified window. The launcher checks the protected process/start time and the checksum of `~/Library/Application Support/Claude-3p/claude_desktop_config.json`, if present. It does not walk either real profile tree.
+Before each modifying operation on an existing library, the whole small library is copied into a private `0700` sibling staging directory. Backup files and directories are fsynced before staging is renamed to `configLibrary.backup-<UTC>`, then the parent directory is fsynced before state references that backup. A `.partial-<uuid>` suffix marks an incomplete backup, never a completed recovery source; caught copy/sync failures remove staging. If the library was absent, state records that fact. Backups accumulate and are never automatically pruned. They may contain sensitive settings from other providers; keep them private and delete old backups deliberately when no longer needed. They are not whole-profile backups. Unsupported backup entries and symlinks cause refusal.
+
+JSON publication uses private `0600` temporary files, flush/fsync, and atomic replacement; caught serialization, sync and replacement failures clean up the temporary file. The library, metadata, state, owned configuration and their ancestors must not be symlinks. Installer/remover operations lock the library directory and recheck the running app and expected state/config/metadata bytes immediately before each publication, rejecting stale snapshots.
+
+**Interruption recovery:** Installation fsyncs the library directory after publishing state, then after publishing the configuration, then after selecting it in metadata. Thus recovery state and config are ordered before the selector, subject to the filesystem/device honoring fsync. On removal, the selector change is synchronized first, then the owned-file deletion; state is retained until both are durable, then its removal is synchronized. An ordinary interruption between completed steps can be recovered by rerunning installation or removal while Desktop is closed. Missing owned files are supported and retries reuse the owned UUID. Tests inject failures and assert synchronization order; they do not simulate power loss or prove hardware persistence. There is no all-or-nothing multi-file transaction. Abrupt process death can leave private JSON temp files or partial backup directories: inspect and remove those explicitly after recovery rather than deleting arbitrary customer files automatically. A final interrupted empty-directory cleanup can leave an empty library.
+
+**Residual race:** Desktop does not honor the installer's lock. Repeated running-app, symlink and byte-snapshot checks narrow but cannot eliminate a launch/editor/path-replacement race between a check and a write. Keep Desktop closed and avoid concurrent editors, automatic launches and restarts until the command finishes. If a snapshot/provenance mismatch is reported, inspect the retained backup instead of forcing an overwrite.
 
 ## How it works
 
-### Gateway mode
+### Gateway and runtime credentials
 
-`config/ghcp.json` supplies flat Desktop configuration keys. The base URL is **`https://api.githubcopilot.com`**, without `/v1`. Desktop adds the API path, so inference reaches `/v1/messages`; bearer authentication is required.
+The base URL is `https://api.githubcopilot.com`, without `/v1`; Desktop appends `/v1/messages`. The configuration selects `inferenceProvider: "gateway"`, bearer authentication and `inferenceCredentialKind: "helper-script"`. Desktop spawns the absolute `gh` executable with `['auth', 'token', '--hostname', 'github.com']`. There is no inference proxy or shell credential wrapper. The helper timeout is 60 seconds and cache TTL is 3,600 seconds. Generated settings contain paths rather than tokens.
 
-```json
-{
-  "inferenceProvider": "gateway",
-  "inferenceGatewayBaseUrl": "https://api.githubcopilot.com",
-  "inferenceGatewayAuthScheme": "bearer",
-  "inferenceCredentialKind": "helper-script",
-  "inferenceCredentialHelper": "/absolute/path/to/gh",
-  "inferenceCredentialHelperArgs": ["auth", "token", "--hostname", "github.com"],
-  "inferenceGatewayAutoModeServerChecks": false
-}
-```
+Setting `ANTHROPIC_BASE_URL` in a shell or Claude Code's `apiKeyHelper` alone does not select Desktop's provider. The scripts do not install any Claude Code settings.
 
-This is Desktop configuration. Setting `ANTHROPIC_BASE_URL` in your shell or configuring Claude Code's `apiKeyHelper` alone does not select Desktop's inference provider.
+### Models
 
-### Credential helper
-
-Desktop spawns the absolute **`gh` executable** with the separate argument array above. Its single-line token output is accepted directly; no inference wrapper is needed. The supplied configuration uses a 60-second helper timeout and a 3,600-second credential cache TTL. Long-lived refresh behavior has not been validated.
-
-The token is not inserted into rendered JSON. The installer only checks that the helper command succeeds; Desktop obtains its own runtime credential when needed. The launcher removes inherited `ANTHROPIC_*` and `CLAUDE_CODE_USE_*` overrides so the configured provider is used.
-
-### Static model list
-
-Both `GET /v1/models` and `GET /v1/models?limit=1000` return **404** at this gateway. Its catalog is available at authenticated `GET /models`, but that is not Desktop's discovery path. The template therefore sets **`modelDiscoveryEnabled: false`** and lists:
+Provider discovery is disabled because Copilot's Anthropic-style `/v1/models` endpoint returns 404. The explicit list is:
 
 | Model ID | Picker display observed |
 | --- | --- |
@@ -85,121 +76,76 @@ Both `GET /v1/models` and `GET /v1/models?limit=1000` return **404** at this gat
 | `claude-sonnet-5` | Sonnet 5 |
 | `claude-haiku-4.5` | claude-haiku-4.5 |
 
-All five IDs were verified in the catalog and returned HTTP 200 in direct Messages API checks. The first entry is the default. Catalog availability and account access can change; update the template deliberately rather than enabling the unsupported discovery route.
+All five IDs passed direct Messages requests; only Opus 5.5 was exercised in a Desktop conversation. Availability depends on your account and can change.
 
-### GitHub MCP headers helper
+### GitHub MCP
 
-The managed HTTP server named **github** points to `https://api.githubcopilot.com/mcp/readonly`. Its static headers contain `X-MCP-Toolsets: web_search`. Desktop runs the absolute path to `bin/ghcp-mcp-headers`, passing the absolute `gh` path through `headersHelperArgs`.
-
-The helper prints exactly one JSON object with an **Authorization bearer header**. It fails with a fixed diagnostic and nonzero exit when credentials cannot be obtained, without printing the failed credential output. Desktop accepted this local configLibrary server as a managed source and connected with `auth: 'headers-helper'`. A direct `web_search` call succeeded; a tool call initiated from a Desktop conversation is still untested.
-
-### Config library and isolation
-
-Installation writes:
-
-```text
-<profile>/configLibrary/_meta.json
-<profile>/configLibrary/<uuid>.json
-```
-
-The UUID file contains the rendered flat configuration, using native JSON booleans and arrays. Metadata selects it with this shape:
-
-```json
-{
-  "appliedId": "<uuid>",
-  "entries": [{"id": "<uuid>", "name": "GitHub Copilot"}]
-}
-```
-
-The separate user-data directory allows another Desktop instance to run alongside the normal one. Ending its name in `-3p` avoids an additional third-party suffix. `disableDeepLinkRegistration: true` avoids re-registering external deep links. Embedded CLI and VM storage were observed under the isolated profile, but this launch option is not a documented guarantee of complete process or account isolation.
-
-### Inspiration: the Claude Code CLI configuration
-
-This setup adapts the **Claude Code CLI** configuration shown below: use GitHub CLI for credentials, Copilot as the Anthropic-compatible endpoint, and GitHub MCP for web search. Desktop needs its own helper argument arrays and configLibrary settings.
-
-The reference CLI inference settings are:
-
-```json
-{
-  "apiKeyHelper": "gh auth token --hostname github.com",
-  "env": {"ANTHROPIC_BASE_URL": "https://api.githubcopilot.com"}
-}
-```
-
-Its MCP entry uses CLI's `type` field and a shell-command `headersHelper`. With this checkout's JSON helper, the equivalent shape is:
-
-```json
-{
-  "mcpServers": {
-    "github": {
-      "type": "http",
-      "url": "https://api.githubcopilot.com/mcp/readonly",
-      "headers": {"X-MCP-Toolsets": "web_search"},
-      "headersHelper": "'/absolute/path/to/checkout/bin/ghcp-mcp-headers' '/absolute/path/to/gh'"
-    }
-  }
-}
-```
-
-These snippets explain the reference; the setup scripts do not install them into your CLI configuration. Desktop instead uses `managedMcpServers`, `transport: "http"`, an executable helper path, and separate arguments.
-
-## Applying to your real Claude Desktop (manual, at your own risk)
-
-Quit Claude and back up **only** `~/Library/Application Support/Claude-3p/configLibrary/` before changing it. For the UI route, reopen Claude and use **Developer → Configure Third-Party Inference** with the values above. **Help → Troubleshooting → Enable Developer Mode** exposes the Developer menu when hidden. These menu paths follow [Anthropic's Desktop configuration documentation](https://claude.com/docs/third-party/claude-desktop/configuration); they were not separately verified in this setup's UI test.
-
-For the manual-file route, keep Claude closed throughout. Copy **only the new `<uuid>.json` file** from `$HOME/claude-ghcp-test/Isolated-3p/configLibrary/` into the real configLibrary folder, creating that folder if it did not exist. Choose a UUID that is not already present; do not overwrite an existing configuration file. **Never copy the isolated `_meta.json` over the real one.** The selector must be merged: preserve all existing entries and other metadata fields, append `{ "id": "<uuid>", "name": "GitHub Copilot" }`, and set `appliedId` to the new ID. If `_meta.json` does not exist, create it with that entry and selector.
-
-After backing up the folder and copying the new UUID file, set `CONFIG_ID` to that file's name without `.json`. The following Python one-liner validates the UUID and existing entries, refuses duplicate IDs and symlinked metadata, and writes the merged JSON through a private temporary file before atomic replacement. It does not replace the existing entry list. Keep Claude closed and do not run concurrent configuration editors while using it; this is a manual operation, not a live-profile transaction.
-
-```sh
-CONFIG_ID='REPLACE_WITH_THE_NEW_UUID'
-python3 -c 'import json, os, pathlib, sys, tempfile, uuid; p=pathlib.Path(sys.argv[1]).expanduser(); i=sys.argv[2]; assert str(uuid.UUID(i)) == i, "Use a canonical UUID"; assert not p.is_symlink(), "Refusing symlinked metadata"; c=p.parent/(i+".json"); assert c.is_file() and not c.is_symlink(), "Copy the new UUID file first"; d=json.loads(p.read_text()) if p.exists() else {"entries":[]}; assert isinstance(d,dict) and isinstance(d.get("entries"),list) and all(isinstance(e,dict) and isinstance(e.get("id"),str) for e in d["entries"]), "Invalid existing metadata"; assert all(e["id"] != i for e in d["entries"]), "ID already exists"; d["entries"].append({"id":i,"name":"GitHub Copilot"}); d["appliedId"]=i; f=tempfile.NamedTemporaryFile(mode="w",dir=p.parent,prefix=".meta-",delete=False); json.dump(d,f,indent=2); f.write("\n"); f.flush(); os.fsync(f.fileno()); f.close(); os.replace(f.name,p)' "$HOME/Library/Application Support/Claude-3p/configLibrary/_meta.json" "$CONFIG_ID"
-```
-
-`scripts/render-config` prints the flat UUID-file contents only; it does not create a metadata selector. Existing managed configuration can take precedence over a local library. Do not copy the rest of the profile. No setup script in this repository applies or restores a real profile.
-
-To revert, quit Claude and **replace the entire configLibrary folder with the folder you backed up**, then restart. Overlaying the backup can leave the new UUID file behind. If no folder existed before setup, remove only the newly created configLibrary folder while Claude is closed.
-
-## Privacy and network boundaries
-
-Rendering and configuration installation are local operations, apart from whatever GitHub CLI needs to obtain its stored credential. Helper stdout is discarded by the installer; generated config holds paths and settings, not a token. Normal inference sends prompts to GitHub Copilot, and MCP calls contact GitHub's MCP service. Direct validation requests also use provider quota.
-
-The tested Desktop build refreshed a **hosted model catalog** even with provider model discovery disabled. Its exact destination and payload were not captured; it may contact Anthropic or other non-GHCP services. Desktop also downloads runtime components. This configuration demonstrates GHCP inference routing, not exclusively GHCP traffic.
-
-Application logs were observed in **`~/Library/Logs/Claude/`**, shared with the normal instance. Launcher stdout/stderr is captured separately under `<profile>/logs/`. OS state such as Keychain items may also be shared. The lifecycle checksum comparison concerns one configuration file, not every file in either normal profile.
-
-Live-check output masks recognized credential patterns, but do not treat it as a complete privacy scrub. Shared-log excerpts are filtered by time and terms, not generally by process identity; correlate them with the isolated session before sharing. Keep raw profiles, screenshots, paths and account details out of public commits.
+The managed HTTP server `github` uses `https://api.githubcopilot.com/mcp/readonly` and `X-MCP-Toolsets: web_search`. Desktop runs `bin/ghcp-mcp-headers` with the absolute `gh` path as its argument. It emits a JSON Authorization header and a fixed error if credentials cannot be obtained. Desktop accepted the local library as a managed source and connected with `auth: 'headers-helper'`. Direct web search passed; a Desktop-conversation-initiated search remains unobserved.
 
 ## Undo and uninstall
 
-Inspect the stop selection first, replacing the PID placeholder:
+Quit Desktop and run:
 
-```text
-scripts/stop-isolated "$HOME/claude-ghcp-test/Isolated-3p" --protect-pid <PID of your normal Claude> --dry-run
-scripts/stop-isolated "$HOME/claude-ghcp-test/Isolated-3p" --protect-pid <PID of your normal Claude>
+```sh
+./uninstall --dry-run
+./uninstall
 ```
 
-The stop command rechecks the exact isolated `--user-data-dir` match immediately before SIGTERM and verifies the protected instance afterward. It does not issue a broad application-name kill or force termination. Once the isolated app has stopped, delete its profile folder if you want to discard its data, then remove the checkout if no other configuration references its helper. Removing local files does not revoke your GitHub sign-in.
+Removal deletes this installer's UUID file and entry and preserves foreign entries and fields, including ones added later. It restores the original `appliedId` **only if the current selector still points to this installer's UUID**. A later foreign selection or deliberately cleared selector is preserved. Restoration requires the original entry and its configuration file still to exist; otherwise the selector is left absent and a clear note is printed, never a dangling original ID. An originally empty/absent selector also becomes absent. If the library was created by the installer and has become empty, it is removed. Backups remain. A previously absent selector does not imply all third-party mode inputs elsewhere have been removed.
+
+There is no automatic whole-backup restore flag. For manual recovery, keep Desktop closed, inspect the backup path recorded in state, retain the current library separately, and restore **only the configLibrary folder** you intend to recover. Full-folder restoration intentionally discards changes made after that backup; ordinary `./uninstall` preserves other entries instead.
+
+Remove the checkout only after no installed configuration references its helper. Removing files does not revoke GitHub authentication or delete Desktop conversations.
+
+## Isolated testing
+
+This secondary testing mode preserves the original separate-profile installation behavior:
+
+```sh
+./install --isolated
+# Or choose a directory:
+./install --isolated "$HOME/claude-ghcp-test/Isolated-3p"
+```
+
+The optional directory defaults to the path above and must end in `-3p`; normal Application Support Claude profiles and shared Claude Code configuration locations are refused. The legacy `scripts/install-isolated DIR` remains available. Unlike default mode, each isolated installation creates a new UUID, appends it to metadata and saves a metadata backup only if `_meta.json` already exists.
+
+For lifecycle helpers, Desktop must be installed at `/Applications/Claude.app`, with your normal main instance already running. Find its PID in Activity Monitor or `ps -axo pid,command`; choose the main executable, not a Helper. Replace the placeholder:
+
+```text
+scripts/launch-isolated "$HOME/claude-ghcp-test/Isolated-3p" --protect-pid <normal-main-PID>
+scripts/stop-isolated "$HOME/claude-ghcp-test/Isolated-3p" --protect-pid <normal-main-PID> --dry-run
+scripts/stop-isolated "$HOME/claude-ghcp-test/Isolated-3p" --protect-pid <normal-main-PID>
+```
+
+Launch uses `--user-data-dir=<profile>` and `CLAUDE_CONFIG_DIR=<profile>/claude-code`, strips inference environment overrides and prints the new main PID. Stop rechecks exact profile matches immediately before SIGTERM; it never force-kills. Guards compare the protected main PID/start time and one configuration-file checksum. After stopping, remove the test profile if its data is no longer needed. Default `./uninstall` is for the default installation, not isolated profile deletion.
+
+Desktop may ignore SIGTERM while a fresh profile is on its welcome screen. The shipped stop helper reports remaining processes instead of force-killing; verify the exact test instance before any manual shutdown. The supervised validation harness's separately authorized main-PID fallback is described in the [validation record](validation.md#default-mode-sandbox-validation).
+
+## Privacy and network boundaries
+
+Rendering is local; installation checks GitHub CLI credentials with output discarded. Inference and MCP send requests to GitHub. Desktop also refreshes a hosted model catalog and downloads runtime components, so this is **not GHCP-only network routing**.
+
+For the normal Desktop's third-party mode, look for startup diagnostics in **`~/Library/Logs/Claude-3p/main.log`**. A base user-data directory without a `-3p` suffix caused the tested build to select this log directory; the existing isolated launch with an already-suffixed directory used `~/Library/Logs/Claude/main.log` instead.
+
+Isolated profiles are not complete security boundaries. Those log directories are shared at the OS account level, and Desktop may also share Keychain state. Launcher stdout/stderr goes under the isolated profile's `logs` folder. Shared logs are not generally process-scoped; correlate timestamps and session details before drawing conclusions or sharing evidence. Neither the normal-profile checksum guard nor the sandbox validation inventories all profile files.
 
 ## Troubleshooting
 
-| Symptom | What to check |
+| Symptom | Action |
 | --- | --- |
-| Installation cannot obtain credentials | Sign in with GitHub CLI and select the active account; check environment-token overrides. Never paste a token into the configuration. |
-| Helper runs in Terminal but fails in Desktop | Verify the absolute paths, executable permissions, GUI availability of Python, and that the checkout is outside protected/cloud folders. |
-| Empty model picker | Confirm the selected library entry has all five full IDs and `modelDiscoveryEnabled: false`; a 404 discovery endpoint cannot populate the list. |
-| 401/403 on inference | Check the active account's Copilot access and bearer authentication; token retrieval alone does not establish entitlement. |
-| 404 on messages | Use the root gateway base URL without `/v1`; the request endpoint must be `/v1/messages`. |
-| Model-specific 400 | Check request features such as reasoning effort; earlier Haiku 4.5 CLI probes rejected an unsupported effort field. |
-| MCP connection fails | Check `transport: "http"`, the read-only URL, helper arguments and static toolset header. Desktop logs should show the helper and connection outcome. |
-| Launcher refuses the protected PID | Select the currently running normal main process, not a Helper or an old PID; do not bypass the guard. |
-| Configuration changes do not appear | Check the metadata selector, restart only the isolated instance, and account for managed settings that override local configuration. |
+| Quit Desktop refusal | Quit the normal main instance and retry; leave it closed throughout the operation. |
+| Managed configuration refusal | Ask your administrator about the managed configuration. |
+| Authentication preflight fails | Sign in with `gh`, select the intended account and check token environment overrides. |
+| Helper works only in Terminal | Check absolute paths, executable permissions, Python availability and protected-folder restrictions. |
+| Empty picker | Check the selected UUID, five full model IDs and `modelDiscoveryEnabled: false`. |
+| Inference 401/403 | Check Copilot entitlement and the active GitHub account. |
+| Messages 404 | Use the gateway root URL without `/v1`. |
+| MCP fails | Check helper arguments, read-only URL, static toolset header and connection logs. |
+| Paths changed | Re-run `./install` to refresh absolute helper paths. |
 
 ## Known limitations
 
-**Auto mode:** `inferenceGatewayAutoModeServerChecks` is false. Desktop uses its built-in check instead of relying on the provider-side review. Acceptance of the new beta header alone does not validate `safeguards` or `safeguard_results` compatibility.
-
-**Coverage:** the five models passed direct inference checks, but only Opus 5.5 was exercised in a real Desktop conversation. Desktop-initiated web search, long sessions, token refresh, context limits, and separate Code and Cowork tab workflows remain untested. Hosted-catalog traffic and shared logs prevent treating the isolated instance as a complete network or storage boundary.
+Provider-side Auto mode checks are disabled (`inferenceGatewayAutoModeServerChecks: false`). A beta-header-only request does not establish full safeguards compatibility. Long sessions, credential refresh, large contexts, Desktop-initiated web search, and separate Code and Cowork tab workflows remain untested. The supported configuration is based on the tested Desktop version and may need updating as Desktop changes.
 
 ## References
 

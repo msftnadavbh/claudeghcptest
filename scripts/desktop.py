@@ -60,10 +60,17 @@ def write_json(path, value):
         raise ValueError("refusing symlink: " + str(path))
     temporary = path.with_name(path.name + "." + str(uuid.uuid4()) + ".tmp")
     descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    with os.fdopen(descriptor, "w") as stream:
-        json.dump(value, stream, indent=2)
-        stream.write("\n")
-    temporary.replace(path)
+    try:
+        with os.fdopen(descriptor, "w") as stream:
+            json.dump(value, stream, indent=2)
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        if path.is_symlink():
+            raise ValueError("refusing symlink: " + str(path))
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def install(path, config):

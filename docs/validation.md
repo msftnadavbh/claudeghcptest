@@ -16,7 +16,10 @@ The configuration was live-tested on **macOS with Claude Desktop 6.28899.6** and
 | Direct MCP web search | Passed | A direct `web_search` call using the same helper/static headers returned HTTP 200 and search results. |
 | Desktop-initiated web search | Not yet observed | Connection and direct-tool evidence do not prove tool invocation from a Desktop conversation. |
 | Credential storage | Passed within checked scope | No runtime token was found in repository files or installed configLibrary JSON. This was not a scan of every application file or log. |
-| Offline regression suite | Passed | **11 tests** pass with temporary HOME fixtures and synthetic credentials. |
+| Offline regression suite | Passed | **35 tests** pass with temporary HOME fixtures and synthetic credentials. |
+| Default-mode sandbox installation | Passed | HOME-scoped default target; private backup; foreign metadata preserved; uninstall restored the original selector and library inventory. |
+| Default-mode sandbox startup | Passed | A base `--user-data-dir` without `-3p` activated the sibling third-party library, GHCP inference host and GitHub headers-helper MCP connection. |
+| Default-mode sandbox picker log | Not observed | The fresh profile stayed on its welcome screen without UI input; identical `inferenceModels` configuration produced `picker = 5` in the isolated-mode validation. |
 
 The protected-app comparison is deliberately narrow: it covers the normal main process identity/start time and `~/Library/Application Support/Claude-3p/claude_desktop_config.json` when present. It does not prove unchanged contents across either entire normal profile.
 
@@ -33,7 +36,7 @@ The following log excerpts describe the isolated run without local identifiers:
 
 The test conversation asked for **“GHCP Desktop isolated chat OK.”** and received that response from `claude-opus-5.5`. The UI showed that the response finished, and the application log reported that the turn succeeded. The picker listed the five configured IDs, formatting `claude-sonnet-5` as **Sonnet 5**.
 
-Application logs were found in the shared `~/Library/Logs/Claude/` directory. Desktop also reported a hosted model-catalog refresh. Neither observation should be interpreted as full storage or network isolation.
+The isolated run used shared `~/Library/Logs/Claude/` logs; the default-mode sandbox launch used `~/Library/Logs/Claude-3p/`. Desktop also reported a hosted model-catalog refresh. Neither observation should be interpreted as full storage or network isolation.
 
 ## Direct API and MCP checks
 
@@ -58,9 +61,25 @@ From the checkout:
 python3 -B -m unittest discover -s tests -v
 ```
 
-The **11 tests** cover rendered JSON and required settings, absolute executable paths, MCP output/error handling, metadata preservation, forbidden-profile and symlink refusal, exact stop-process selection including Helper/GPU rows, token-pattern scanning, discarded-output credential preflight, required protected-PID arguments, private JSON-file creation, and the test I/O guard.
+The **35 tests** cover rendered JSON, absolute helper paths, MCP output/error handling, default target resolution, alternate/renamed main-app paths, Helper-only and isolated process rows, ambiguous profile arguments, MDM refusal, private backups, metadata merge and idempotency, uninstall with foreign entries/fields and later selections, deleted previous targets, absent libraries/selectors, dry-run, symlinks, per-publication snapshot checks, isolated compatibility, exact stop selection, token-pattern scanning, credential preflight, private JSON writes, complete state/provenance validation, failure cleanup, staged backup failures, interrupted install/removal recovery, fsync ordering, test-only HOME gating, and Desktop/Code I/O tripwires.
 
-Each test sets a temporary HOME before home-relative operations. Subprocesses receive explicit sanitized environments without inherited credential/configuration overrides. A fake `gh` handles authentication-related tests. The test-only Python audit guard rejects real Claude profile I/O in the main test process and Python children; its rejection is tested without opening the protected files. Stop tests mock signaling rather than operating on running apps.
+Each test sets a temporary HOME before home-relative operations. Subprocesses receive explicit sanitized environments without inherited credential/configuration overrides. A fake `gh` handles authentication-related tests. The test-only Python audit tripwire rejects real Claude profile I/O and real `~/.claude` / `~/.claude.json` access in the main test process and Python children, for lexical paths and resolved aliases; rejection is tested without opening protected files. This is not an OS sandbox and does not contain arbitrary native/shell children. Stop tests mock signaling rather than operating on running apps. Fault injection verifies recoverability and synchronization call order, not power-loss or hardware durability.
+
+## Default-mode sandbox validation
+
+Default install and uninstall were exercised with a dedicated sandbox HOME, never the account's actual HOME. A fake foreign library entry, its selected ID and a custom metadata field were seeded first. The installer merged its own entry and created a `0700` timestamped library backup. After startup validation and exact-PID shutdown, uninstall restored the foreign entry, original selector, foreign file bytes and library inventory. Both pre-existing Desktop main processes retained their argv/start times and the protected configuration checksum was unchanged.
+
+For a deliberate repeat, select a fresh sandbox outside the account's Library, set `HOME` and `CLAUDE_CONFIG_DIR` to sandbox paths, and set `GHCP_TEST_FORBID_REAL_HOME=1`. Use `./install --sandbox-home`, then launch the Desktop executable with `--user-data-dir="$HOME/Library/Application Support/Claude"` (**without** `-3p`). This exercises Desktop's real suffix derivation rather than the isolated-mode shortcut. GitHub CLI still needs credentials: in this validation an account credential was passed through `GH_TOKEN` in memory because OS credential lookup under the substituted HOME failed; it was never saved in configuration or evidence.
+
+`--sandbox-home` requires a HOME distinct from the OS account home and outside its Library. It explicitly treats unqualified Desktop launches as belonging to the OS account rather than the caller's substituted HOME. It still refuses a process explicitly targeting the sandbox's base or `-3p` user-data path, and fails closed on ambiguous argv. Without this flag, a nonstandard HOME is rejected outside the hermetic unit-test environment. The additional test-only guard refuses real account configuration locations, including resolved aliases; a sandbox may be a separate subdirectory of the account home.
+
+`GHCP_TEST_HOME` is a unit-test-only exception, honored only when it exactly matches HOME and `GHCP_TEST_FORBID_REAL_HOME=1` is also set. It cannot redirect an ordinary customer invocation by itself.
+
+After the recorded launch time, **`~/Library/Logs/Claude-3p/main.log`** contained gateway activation, the Copilot inference host, and a GitHub MCP connection with `auth: 'headers-helper'`. The base-path startup changes the log destination from the already-suffixed isolated launch's `Claude/main.log`. No UI input was sent. The fresh profile remained on its welcome screen, so `picker = 5` was **not observed in this sandbox run**; the same five `inferenceModels` were verified in installed JSON and produced that picker log in the isolated-mode validation.
+
+Stop only the sandbox main PID after re-reading its argv and verifying the exact sandbox `--user-data-dir`; use SIGTERM only. Verify protected process identities and checksum again, then run `./uninstall --sandbox-home` under the same sandbox HOME and guard. Keep masked evidence outside the repository. Do not run default installation or removal against a real account HOME as part of tests.
+
+During the review-fix repeat, default installation/removal and foreign-library restoration passed, but the sandbox welcome screen emitted only gateway activation before shutdown; inference-host and MCP startup checks were not observed in that repeat (they passed in the earlier run above). Desktop ignored SIGTERM while on the welcome screen. The supervisor verified and force-stopped only the sandbox main PID, after which removal ran successfully and protected process/checksum checks passed. The local validation harness now allows a supervisor-authorized sandbox-only SIGKILL fallback after 20 seconds, re-verifying the exact main-process argv immediately before signaling. The shipped isolated lifecycle helper continues to use SIGTERM only.
 
 ## Repeat live checks deliberately
 
@@ -83,4 +102,4 @@ Live requests consume provider usage. Evidence may include personal paths or con
 
 **Provider-side Auto mode safeguards**, long-running sessions, credential refresh after expiry, large-context behavior, and separate **Code** and **Cowork** tab workflows remain untested. The supplied configuration disables provider-side Auto mode checks; a beta-header-only request succeeded but does not prove the full safeguards protocol. A Desktop-initiated MCP web-search call has not yet been observed.
 
-No installation into the normal profile was performed. Manual application/reversion guidance is documented in the [guide](guide.md#applying-to-your-real-claude-desktop-manual-at-your-own-risk), not implemented by setup scripts.
+No installation into a real account's normal profile was performed during validation. Default installation and removal are implemented and covered through the sandbox target described above; customer usage is documented in the [guide](guide.md#setup).

@@ -37,6 +37,7 @@ class DesktopTests(unittest.TestCase):
             "PYTHONDONTWRITEBYTECODE": "1",
             "PYTHONPATH": str(ROOT / "tests/sandbox"),
             "GHCP_TEST_HOME": str(self.home), "GHCP_REAL_HOME": REAL_HOME,
+            "GHCP_TEST_FORBID_REAL_HOME": "1",
             "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": "/dev/null",
         }
         environment = patch.dict(os.environ, self.env, clear=True)
@@ -210,6 +211,18 @@ class DesktopTests(unittest.TestCase):
             desktop.write_json(path, {"value": True})
         self.assertEqual(open_file.call_args.args[2], 0o600)
         self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+
+    def test_guard_blocks_real_code_settings_parent_and_child(self):
+        for suffix in (".claude", ".claude/settings.json", ".claude.json"):
+            forbidden = Path(REAL_HOME) / suffix
+            with self.assertRaisesRegex(AssertionError, "Claude Code settings"):
+                safety.guard_path(forbidden)
+            with patch.object(Path, "resolve", return_value=forbidden), self.assertRaisesRegex(AssertionError, "Claude Code settings"):
+                safety.guard_path(self.base / "alias")
+            code = "import os; open(os.environ['GHCP_REAL_HOME'] + '/' + " + repr(suffix) + ")"
+            result = self.run_command([PYTHON, "-c", code])
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("Claude Code settings", result.stderr)
 
 
 if __name__ == "__main__":

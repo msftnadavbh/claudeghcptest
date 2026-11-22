@@ -15,6 +15,9 @@ def reject_real(path):
     support = os.path.join(_real_home, "Library", "Application Support").casefold() + os.sep
     if value.startswith(support) and value[len(support):].split(os.sep)[0].startswith("claude"):
         raise AssertionError("test attempted access to a real Claude profile")
+    code = os.path.join(_real_home, ".claude").casefold()
+    if value in (code, code + ".json") or value.startswith(code + os.sep):
+        raise AssertionError("test attempted access to real Claude Code settings")
 
 
 def guard_path(path):
