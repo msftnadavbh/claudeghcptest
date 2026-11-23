@@ -1,31 +1,25 @@
 # Validation record
 
-The configuration was live-tested on **macOS with Claude Desktop 6.28899.6** and embedded Claude Code **2.1.330**. This record summarizes results without publishing local profiles, account details, machine paths, process IDs, or raw diagnostic captures.
+Live observations were collected on macOS with Claude Desktop **6.28899.6** and embedded Claude Code **2.1.330**. Results below distinguish Desktop UI checks, direct API probes, and offline tests. No local profile, account identifier, process ID, or raw diagnostic capture is included.
 
-## Results
+## Live checks
 
-| Check | Result | What establishes it |
+| Check | Result | Evidence scope |
 | --- | --- | --- |
-| Separate Desktop instance | Passed | An isolated `--user-data-dir` ending in `-3p` ran alongside the normal app. The protected main PID/start time and one specified configuration-file checksum stayed unchanged. |
-| GHCP gateway mode | Passed | Desktop reported third-party gateway mode and the Copilot inference host. |
-| Runtime inference credential | Passed | Desktop ran the absolute `gh` executable with `auth token --hostname github.com` and reported helper success. |
-| Model picker | Passed | Desktop reported five entries from `inferenceModels`; all five appeared in the isolated window. |
-| Desktop conversation | Passed | A real Opus 5.5 turn completed with the requested short response in the isolated window; Desktop logged turn success. |
-| Five-model direct inference | Passed | Each configured model ID returned HTTP 200 from `/v1/messages`. This does not establish a Desktop conversation with each model. |
-| GitHub MCP connection | Passed | Desktop connected with `auth: 'headers-helper'` and one available tool. |
-| Direct MCP web search | Passed | A direct `web_search` call using the same helper/static headers returned HTTP 200 and search results. |
-| Desktop-initiated web search | Not yet observed | Connection and direct-tool evidence do not prove tool invocation from a Desktop conversation. |
-| Credential storage | Passed within checked scope | No runtime token was found in repository files or installed configLibrary JSON. This was not a scan of every application file or log. |
-| Offline regression suite | Passed | **36 tests** pass, including upgrading a managed string-only model list to tier objects under the same UUID. |
-| Default-mode sandbox installation | Passed | HOME-scoped default target; private backup; foreign metadata preserved; uninstall restored the original selector and library inventory. |
-| Default-mode sandbox startup | Passed | A base `--user-data-dir` without `-3p` activated the sibling third-party library, GHCP inference host and GitHub headers-helper MCP connection. |
-| Default-mode sandbox picker log | Not observed | The fresh profile stayed on its welcome screen without UI input; identical `inferenceModels` configuration produced `picker = 5` in the isolated-mode validation. |
+| Isolated Desktop alongside normal app | Passed | A separate profile ending in `-3p` ran alongside the normal app; protected main-process identity/start time and one specified config checksum were compared. This is not a full profile inventory. |
+| Gateway activation and runtime credential | Passed | Desktop logged third-party Gateway mode, the GitHub Copilot inference host, and successful use of the absolute `gh` helper. |
+| Model picker | Passed | Five configured `inferenceModels` entries appeared in the isolated window. |
+| Desktop conversation | Passed | An Opus 5.5 turn completed in the isolated window. |
+| Five-model direct inference | Passed | All configured model IDs returned HTTP 200 from `/v1/messages`; this is not a Desktop conversation test for every model. |
+| GitHub MCP connection | Passed | Desktop connected to managed server `github` with `auth: 'headers-helper'`. |
+| Direct MCP `web_search` | Passed | Direct `tools/call` returned HTTP 200 with search results. |
+| Desktop-conversation-initiated web search | Not observed | The connection and direct tool result do not establish that Desktop invoked the tool from a conversation. |
+| Runtime token absent from checked storage | Passed within checked scope | No token was found in repository files or installed configLibrary JSON. This was not a scan of all application files or logs. |
+| Default-mode install/uninstall sandbox | Passed | A temporary HOME with a pre-existing foreign entry preserved foreign metadata, created a private backup, and restored the previous selector and library inventory on removal. |
+| Default-mode sandbox startup | Partially observed | Across sandbox startup observations, a base `--user-data-dir` without `-3p` activated the third-party library; one run also recorded the Copilot host and GitHub MCP connection, while another recorded gateway activation only before shutdown. |
+| Default-mode sandbox picker | Not observed | The fresh sandbox profile stayed on the welcome screen without UI input. The identical model list produced a picker in isolated-mode validation. |
 
-The protected-app comparison is deliberately narrow: it covers the normal main process identity/start time and `~/Library/Application Support/Claude-3p/claude_desktop_config.json` when present. It does not prove unchanged contents across either entire normal profile.
-
-## Desktop observations
-
-The following log excerpts describe the isolated run without local identifiers:
+Observed Desktop diagnostics included:
 
 ```text
 [custom-3p] 3P mode active { provider: 'gateway' }
@@ -34,112 +28,73 @@ The following log excerpts describe the isolated run without local identifiers:
 [custom3p-mcp] connected { name: 'github', toolCount: 1, auth: 'headers-helper' }
 ```
 
-The test conversation asked for **“GHCP Desktop isolated chat OK.”** and received that response from `claude-opus-5.5`. The UI showed that the response finished, and the application log reported that the turn succeeded. The picker listed the five configured IDs, formatting `claude-sonnet-5` as **Sonnet 5**.
+The isolated conversation requested a short fixed phrase and received it from `claude-opus-5.5`; the UI completed and the application log recorded turn success. A separate sandbox welcome-screen run sent no UI input. Desktop also refreshed a hosted model catalog. These results do not prove full network or storage isolation.
 
-The isolated run used shared `~/Library/Logs/Claude/` logs; the default-mode sandbox launch used `~/Library/Logs/Claude-3p/`. Desktop also reported a hosted model-catalog refresh. Neither observation should be interpreted as full storage or network isolation.
+## Claude Code tab
 
-## Claude Code tab commands
+The Desktop Code tab was opened with Manual permissions and a local fixture. Its Code child had `ANTHROPIC_DEFAULT_OPUS_MODEL`, `ANTHROPIC_DEFAULT_SONNET_MODEL`, and `ANTHROPIC_DEFAULT_HAIKU_MODEL` set to the corresponding dotted 5.5 IDs supplied by `anthropicFamilyTier` and `isFamilyDefault` metadata.
 
-The isolated Desktop opened **Code** with Manual permissions and a local Git fixture. Its own Code child had all three `ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU}_MODEL` values set to the corresponding dotted 5.5 IDs. The following checks used that Desktop window:
-
-| Command | Desktop status | What was observed |
+| Command | Desktop observation | Qualification |
 | --- | --- | --- |
-| Normal prompt; `/btw` side chat | PASS | Opus answered “Indigo clock.” **Cmd+;** opened a side chat that correctly recalled those words without the question repeating them. Literal `/btw` submission was not separately exercised. |
-| `/insights` | Works (Desktop gateway analysis; populated headless report) | Desktop wrote three model-generated analyses of session goals and outcomes under `usage-data/facets/`. All were classified as `warmup_minimal`, so the final HTML correctly included **0 of 4 sessions**. With substantive sessions, the same engine produced the populated report described below. |
-| `/model` | PASS | Switched to Haiku 5.5, then Sonnet 5.5, and received a reply after each switch. Both model identities appeared in the corresponding assistant transcript records. |
-| `/context`, `/compact` | PASS | Context showed a category breakdown for a 1M window; compaction reported 84.8K tokens saved. |
-| `/mcp`, `/status` | PASS | MCP listed `github` as Web, Managed, Connected; status showed the connection and managed settings in effect. |
-| `/cost` | PASS | Resolved to Usage settings, which explicitly omits provider-specific currency costs. |
-| `/effort low`, `/config`, `/permissions`, `/memory`, `/resume` | PASS for observed action | Effort confirmed the session override. The others opened Code settings, settings with permission controls, the Memory file list and the resume dialog, respectively. No settings were edited or session restored from the dialog. |
-| `/hooks` | Terminal only | Desktop directed the user to Claude Code in a terminal. |
-| `/agents` | Wizard removed in this build | Desktop displayed the removal notice. Neither this nor the `/hooks` restriction is a Copilot gateway failure. |
-| `/help` | Inconclusive | Focus left the test app after submission; destination not inspected. |
-| `/clear`, `/init`, `/review`, `/export`, `/todos`, remaining menu entries | Not tested in Desktop | Foreground testing stopped when another app took focus. Separate engine results follow. |
+| Prompt and Cmd+; side chat (`/btw`) | Passed | Side chat recalled context from the main conversation. The literal `/btw` text submission was not separately exercised. |
+| `/insights` | Command ran | Desktop generated three analyses, but all sessions were classified `warmup_minimal`; the report included 0 of 4 sessions. Substantive eligible sessions produced a populated report in a separate SDK test, not the Desktop UI. |
+| `/model` | Passed | Switched to Haiku 5.5 and Sonnet 5.5; each returned a reply. |
+| `/context`, `/compact` | Passed | Context displayed a category breakdown; compaction reported tokens saved. |
+| `/mcp`, `/status` | Passed | MCP showed `github` as Web, Managed, Connected; status reflected the connection and managed settings. |
+| `/cost` | Passed | Opened local Usage settings, which omit provider-specific currency costs. |
+| `/effort`, `/config`, `/permissions`, `/memory`, `/resume` | Passed for observed action | Effort accepted a session override; other commands opened their corresponding local settings/list/dialog. No settings were changed and no session was resumed. |
+| `/usage` | SDK-only | Passed in SDK testing; not established as a Desktop command. |
+| `/hooks` | Terminal-only | Desktop directs users to Claude Code in a terminal. |
+| `/agents` | Removed | The tested embedded version displayed a removal notice for the old wizard. |
+| Account/cloud-only commands | Unavailable | These require first-party identity or Anthropic-hosted cloud features. |
 
-**Engine comparison.** A separate controlled test used the same **2.1.330** engine against Copilot, with and without the three tier pins. An SDK result is not a Desktop GUI result. For comparison, the terminal tests used an interactive TUI.
+In a headless SDK test against the same embedded engine, three substantive local sessions produced a populated `/insights` report. The engine's eligibility filters can exclude short or warmup sessions. That result is separate from the Desktop UI observation above.
 
-| Command | Status | Notes |
-| --- | --- | --- |
-| `/btw` | PASS (TUI); unavailable as SDK text | The terminal overlay and an SDK fork answered using the parent conversation. Literal SDK `/btw` was rejected before inference. |
-| `/insights` | PASS (SDK) | Three eligible local sessions produced a populated report: six user messages, twelve Opus requests, all HTTP 200. Also passed without pins. |
-| `/model` | PASS (SDK) | Each of the five exact IDs accepted a switch and subsequent prompt. An Opus validation retried successfully after throttling. |
-| `/compact`, `/context`, `/clear` | PASS (SDK) | Compaction produced a persisted summary, context reported model-specific limits, and clear reset the conversation. |
-| `/effort`, `/config` | PASS (SDK text) | Low effort accepted for the session; `/config` returned its `key=value` interface. |
-| `/mcp` | PASS (SDK command) | Reported no servers in the headless fixture; this does not test Desktop's managed GitHub connection. |
-| `/cost`, `/usage` | PASS (SDK) | Local estimated cost; no Copilot subscription balance. |
-| `/init`, `/review` | PASS for fixture creation and bug identification (SDK) | Init created `CLAUDE.md`; review identified a seeded subtraction bug via file reads. The lab sandbox blocked the Git diff. |
-| `/agents` | Removal notice (SDK) | The old wizard is no longer present. |
-| `/status`, `/hooks`, `/permissions`, `/memory`, `/resume`, `/export`, `/help` | PASS opening TUI panels; unavailable as SDK text | Each returned a local unavailability message in print mode, without an inference request. |
-| `/todos` | Unavailable | Unknown in the terminal; SDK sent the text to the model instead of dispatching a command. |
-| `/remote-control`, `/voice`, `/upgrade`, `/usage-credits` | N/A | Require first-party identity or subscription services; a GHCP bearer does not supply them. |
-| Cloud sessions, `/schedule`, `/__remote-workflow`, Design consent | N/A | Require Anthropic-hosted services, remote execution, or Design authorization. Local `/loop` is distinct: it created an in-session schedule in the SDK lab. |
+Auto-mode server checks are set to `false` in the configuration. When enabled in a probe, GitHub Copilot rejected the `safeguards` field with HTTP 400. Opus requests received intermittent HTTP 429 responses during report generation; a later retry succeeded without configuration changes.
 
-In the headless lab with all three tier pins set, the session title request went to Haiku, and WebFetch made requests to both Haiku and Opus (cmdlab `REPORT.md`, “Session title” and “WebFetch” rows). The runs did not isolate the effect of individual pins.
+## Direct API and MCP results
 
-Neither the successful side question nor the populated report required a new credential setting or Auto mode classifier override. With server-side Auto mode checks enabled, Copilot rejected the `safeguards` field (HTTP 400); the config retains `inferenceGatewayAutoModeServerChecks: false`. The lab also observed intermittent HTTP 429s on Opus during report generation. A later retry succeeded without changing the model configuration. See [gateway limitations](https://code.claude.com/docs/en/llm-gateway-connect) and [local report eligibility](https://code.claude.com/docs/en/costs#analyze-your-usage-patterns).
-
-## Direct API and MCP checks
-
-| Request | Observed result |
+| Request | Result |
 | --- | --- |
-| Authenticated `GET /models` | HTTP 200; all five configured Claude IDs present |
-| `GET /v1/models` | HTTP 404 |
-| `GET /v1/models?limit=1000` | HTTP 404 |
-| `POST /v1/messages` for each configured model | HTTP 200 |
-| Streaming Messages request | HTTP 200 with SSE response events |
-| `POST /v1/messages/count_tokens` | HTTP 200 |
-| GitHub MCP `initialize` and `tools/list` | HTTP 200; `web_search` available |
-| GitHub MCP `tools/call` for `web_search` | HTTP 200 with web results |
+| Authenticated `GET /models` | HTTP 200; configured Claude IDs present for the tested account. |
+| `GET /v1/models` and `GET /v1/models?limit=1000` | HTTP 404. |
+| `POST /v1/messages` for each of five configured models | HTTP 200. |
+| Streaming Messages request | HTTP 200 with server-sent events. |
+| `POST /v1/messages/count_tokens` | HTTP 200. |
+| GitHub MCP `initialize` and `tools/list` | HTTP 200; `web_search` available. |
+| GitHub MCP `tools/call` for `web_search` | HTTP 200 with web results. |
 
-The directly tested model IDs were `claude-opus-5.5`, `claude-sonnet-5.5`, `claude-haiku-5.5`, `claude-sonnet-5`, and `claude-haiku-4.5`. These results apply to the tested account and request shapes; availability and accepted request features can change.
+Configured model IDs: `claude-opus-5.5`, `claude-sonnet-5.5`, `claude-haiku-5.5`, `claude-sonnet-5`, and `claude-haiku-4.5`. Results apply to the tested account and request shapes; available models and accepted request features can change.
 
-## Run the offline suite
+## Offline test suite
 
-From the checkout:
+From the repository root, run:
 
 ```sh
 python3 -B -m unittest discover -s tests -v
 ```
 
-The **36 tests** cover rendered JSON and model-family defaults, upgrade of a managed model list, absolute helper paths, MCP output/error handling, default target resolution, alternate/renamed main-app paths, Helper-only and isolated process rows, ambiguous profile arguments, MDM refusal, private backups, metadata merge and idempotency, uninstall with foreign entries/fields and later selections, deleted previous targets, absent libraries/selectors, dry-run, symlinks, per-publication snapshot checks, isolated compatibility, exact stop selection, token-pattern scanning, credential preflight, private JSON writes, complete state/provenance validation, failure cleanup, staged backup failures, interrupted install/removal recovery, fsync ordering, test-only HOME gating, and Desktop/Code I/O tripwires.
+The 36 tests cover config rendering and model-family defaults; model-list upgrades; helper paths and MCP output; default-target resolution and process detection; MDM refusal; backup, metadata merge, idempotency, and uninstall selection behavior; dry-run and symlink refusal; state/provenance validation; snapshot checks; isolated-mode compatibility and exact process selection; token-pattern checks; auth preflight; private writes and failure cleanup; interrupted install/removal recovery and synchronization order; and test-only HOME and Desktop/Code I/O guards.
 
-Each test sets a temporary HOME before home-relative operations. Subprocesses receive explicit sanitized environments without inherited credential/configuration overrides. A fake `gh` handles authentication-related tests. The test-only Python audit tripwire rejects real Claude profile I/O and real `~/.claude` / `~/.claude.json` access in the main test process and Python children, for lexical paths and resolved aliases; rejection is tested without opening protected files. This is not an OS sandbox and does not contain arbitrary native/shell children. Stop tests mock signaling rather than operating on running apps. Fault injection verifies recoverability and synchronization call order, not power-loss or hardware durability.
+Tests use a temporary HOME for home-relative operations, a fake `gh`, sanitized subprocess environments, mocked process lists/signals, and no network. The test-only Python audit guard checks protected profile paths in the main test process and Python children. It is not an OS sandbox and does not contain arbitrary native or shell children. Fault injection validates cleanup, retry behavior, and synchronization call order; it does not simulate power loss or guarantee hardware durability.
 
-## Default-mode sandbox validation
+GitHub Actions runs the offline tests on `macos-latest` and `ubuntu-latest`. A publication-safety step scans tracked files for personal paths and credential patterns. The Copilot coding agent setup workflow installs Python 3.12 on Ubuntu and is triggered manually or when its workflow file changes in a pull request. Repository instructions for contributors are in [`.github/copilot-instructions.md`](../.github/copilot-instructions.md).
 
-Default install and uninstall were exercised with a dedicated sandbox HOME, never the account's actual HOME. A fake foreign library entry, its selected ID and a custom metadata field were seeded first. The installer merged its own entry and created a `0700` timestamped library backup. After startup validation and exact-PID shutdown, uninstall restored the foreign entry, original selector, foreign file bytes and library inventory. Both pre-existing Desktop main processes retained their argv/start times and the protected configuration checksum was unchanged.
+## Test-only sandbox validation
 
-For a deliberate repeat, select a fresh sandbox outside the account's Library, set `HOME` and `CLAUDE_CONFIG_DIR` to sandbox paths, and set `GHCP_TEST_FORBID_REAL_HOME=1`. Use `./install --sandbox-home`, then launch the Desktop executable with `--user-data-dir="$HOME/Library/Application Support/Claude"` (**without** `-3p`). This exercises Desktop's real suffix derivation rather than the isolated-mode shortcut. GitHub CLI still needs credentials: in this validation an account credential was passed through `GH_TOKEN` in memory because OS credential lookup under the substituted HOME failed; it was never saved in configuration or evidence.
+Default-mode sandbox install, launch, and uninstall are validation procedures, not customer setup. Never run `./install` or `./uninstall` against a real HOME for validation, and never launch Desktop as part of the offline test suite. For permitted manual checks, use a fresh temporary HOME outside the account's Library, set `GHCP_TEST_FORBID_REAL_HOME=1`, and invoke the entry point with `--sandbox-home`. Supply a fake `gh` for dry-run/authentication checks, for example:
 
-`--sandbox-home` requires a HOME distinct from the OS account home and outside its Library. It explicitly treats unqualified Desktop launches as belonging to the OS account rather than the caller's substituted HOME. It still refuses a process explicitly targeting the sandbox's base or `-3p` user-data path, and fails closed on ambiguous argv. Without this flag, a nonstandard HOME is rejected outside the hermetic unit-test environment. The additional test-only guard refuses real account configuration locations, including resolved aliases; a sandbox may be a separate subdirectory of the account home.
+```sh
+HOME="/path/to/fresh-temp-home" GHCP_TEST_FORBID_REAL_HOME=1 \
+  ./install --dry-run --sandbox-home --gh /path/to/fake-gh
+```
 
-`GHCP_TEST_HOME` is a unit-test-only exception, honored only when it exactly matches HOME and `GHCP_TEST_FORBID_REAL_HOME=1` is also set. It cannot redirect an ordinary customer invocation by itself.
+`--sandbox-home` rejects the account HOME and paths inside its Library. It treats unqualified Desktop launches as the OS account's app and still refuses an explicit launch targeting either sandbox config profile. `GHCP_TEST_FORBID_REAL_HOME` is a test-only guard against real account configuration locations, including resolved aliases. A temporary sandbox can be a separate directory under the account home if outside its Library.
 
-After the recorded launch time, **`~/Library/Logs/Claude-3p/main.log`** contained gateway activation, the Copilot inference host, and a GitHub MCP connection with `auth: 'headers-helper'`. The base-path startup changes the log destination from the already-suffixed isolated launch's `Claude/main.log`. No UI input was sent. The fresh profile remained on its welcome screen, so `picker = 5` was **not observed in this sandbox run**; the same five `inferenceModels` were verified in installed JSON and produced that picker log in the isolated-mode validation.
+`GHCP_TEST_HOME` is strictly test-only. It is honored only when it exactly matches `HOME` and `GHCP_TEST_FORBID_REAL_HOME=1` is also set; by itself it cannot redirect a customer invocation. The Python `sitecustomize.py` guard used by tests audits file access in the main process and Python subprocesses and requires subprocesses to retain the fixture HOME. These environment variables do not provide an OS-level security boundary.
 
-Stop only the sandbox main PID after re-reading its argv and verifying the exact sandbox `--user-data-dir`; use SIGTERM only. Verify protected process identities and checksum again, then run `./uninstall --sandbox-home` under the same sandbox HOME and guard. Keep masked evidence outside the repository. Do not run default installation or removal against a real account HOME as part of tests.
+The recorded sandbox startup used a substituted HOME and could not read the normal OS credential store, so its live validation supplied a credential in memory through `GH_TOKEN`; the token was not saved to configuration or evidence. That is a detail of the recorded validation setup, not a recommended customer sign-in method. The tested normal profile's log location was `~/Library/Logs/Claude-3p/main.log`.
 
-During the review-fix repeat, default installation/removal and foreign-library restoration passed, but the sandbox welcome screen emitted only gateway activation before shutdown; inference-host and MCP startup checks were not observed in that repeat (they passed in the earlier run above). Desktop ignored SIGTERM while on the welcome screen. The supervisor verified and force-stopped only the sandbox main PID, after which removal ran successfully and protected process/checksum checks passed. The local validation harness now allows a supervisor-authorized sandbox-only SIGKILL fallback after 20 seconds, re-verifying the exact main-process argv immediately before signaling. The shipped isolated lifecycle helper continues to use SIGTERM only.
+## Known validation limits
 
-## Repeat live checks deliberately
-
-Live validation needs macOS, a signed-in GitHub CLI account with inference access, and a separately installed profile. Follow [setup](guide.md#setup) first. Every `scripts/live-check.py` action requires `--profile <isolated-profile>`, `--evidence <local-evidence-directory>`, and `--protect-pid <PID of your normal Claude>`.
-
-| Action | Purpose |
-| --- | --- |
-| `baseline --name before` | Record the protected process/checksum and isolated process selection before launch |
-| `probe` | Check catalog/discovery endpoints, a Sonnet 5.5 Messages request, streaming, token counts, and MCP initialization/tool listing |
-| `web-search` | Make one direct MCP web-search request |
-| `capture --name final` | Save masked relevant log excerpts, installed configuration and lifecycle observations; expects the earlier `before.json` |
-| `audit` | Search repository and installed configLibrary JSON for the exact runtime token, reporting only results/paths |
-| `record --name result -- <command>` | Save masked command output |
-
-The current `probe` action does not loop over all five models; the five-model result above also includes separate direct checks. A probe does not send a Desktop chat. Verify that any interactive window belongs to the isolated process before sending input, and confirm Desktop response/model-picker behavior separately.
-
-Live requests consume provider usage. Evidence may include personal paths or conversations despite credential masking. Keep it local and review any excerpt before sharing, especially because the application log is shared and automatic filtering is not generally process-scoped.
-
-## Not yet validated
-
-**Provider-side Auto mode safeguards**, long-running sessions, credential refresh after expiry, large-context behavior and **Cowork** remain unverified. The supplied configuration disables provider-side Auto mode checks; a beta-header-only request succeeded but does not prove the full safeguards protocol. A Desktop-initiated MCP web-search call and a populated Desktop Code `/insights` report have not yet been observed.
-
-No installation into a real account's normal profile was performed during validation. Default installation and removal are implemented and covered through the sandbox target described above; customer usage is documented in the [guide](guide.md#setup).
+The normal account's full profile was not compared; the process/checksum comparison covers only the main process identity/start time and one specified configuration file. A fresh sandbox profile stayed on its welcome screen, so no model picker was observed in the default-mode sandbox run. Across default-mode sandbox startup observations, one run recorded gateway activation, the inference host, and MCP connection; another recorded gateway activation only before shutdown. Desktop-conversation-initiated web search and a populated Desktop Code `/insights` report have not been observed. Long sessions, credential refresh after expiry, large-context behavior, Cowork, and Auto-mode safeguards compatibility remain unverified. Hosted model catalog traffic is observed, so the app is not limited to GitHub Copilot endpoints. See the [guide](guide.md#privacy-logs-and-known-limitations) for customer-facing impact and limitations.
