@@ -51,8 +51,9 @@ def probes(directory):
     models = request("/models", token)
     catalog = json.loads(models["body"])
     available = [row["id"] for row in catalog.get("data", []) if row.get("vendor") == "Anthropic"]
+    configured = [m["name"] if isinstance(m, dict) else m for m in config["inferenceModels"]]
     save(directory, "catalog.json", {"status": models["status"], "claude_models": available,
-                                     "configured_models_present": all(m in available for m in config["inferenceModels"])})
+                                     "configured_models_present": all(m in available for m in configured)})
     results = []
     for path in ("/v1/models", "/v1/models?limit=1000"):
         results.append(request(path, token))

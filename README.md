@@ -24,6 +24,18 @@ Use `./install --dry-run` to preview changes or `./install --help` for options. 
 
 **GitHub MCP** connects to the read-only endpoint with a runtime headers helper and the `web_search` toolset. The Desktop connection and a direct web-search tool call passed. A web-search call initiated by a Desktop conversation has not yet been observed. See [test results](docs/validation.md) for the distinction between Desktop checks and direct API probes.
 
+## Claude Code tab commands
+
+The gateway configuration maps `opus`, `sonnet`, and `haiku` to Copilot’s dotted 5.5 model IDs. Existing customers can quit Desktop, rerun `./install`, then reopen it. This updates the selected managed entry in place.
+
+| Command | Status | Notes |
+| --- | --- | --- |
+| `/btw` | Desktop side chat verified | **Cmd+;** opened a side chat that correctly recalled the main thread’s answer. |
+| `/insights` | Works | Desktop analyzed local sessions through Copilot. Reports exclude trivial warmups; a headless test with real work sessions produced a populated report. |
+| `/upgrade`, `/usage-credits` | N/A | These manage a Claude subscription, not a Copilot account. |
+
+See the [command results by surface](docs/validation.md#claude-code-tab-commands) before relying on a terminal command in Desktop.
+
 ## Privacy and safety
 
 Configuration rendering is local. Installation checks GitHub CLI credentials with output discarded; normal inference and MCP use send requests to GitHub. Desktop also fetches a hosted model catalog and runtime components, so **this is not a GHCP-only network configuration**. Credentials are not written into generated configuration, but conversations and application diagnostics can contain sensitive content.
@@ -45,7 +57,7 @@ For testing alongside your normal app, use `./install --isolated [DIR]`. The def
 
 Live checks used Claude Desktop **6.28899.6** on macOS with embedded Claude Code **2.1.330**. Default installation supports Desktop bundles in different locations; isolated lifecycle helpers target `/Applications/Claude.app`. Windows and Linux have not been tested. Python and GitHub CLI must also be available to Desktop's helper environment. Re-run installation if you move the checkout.
 
-**Server-side Auto mode checks** are disabled in the supplied configuration. Full safeguards compatibility, long sessions, credential refresh, and the separate Code and Cowork tabs remain untested. See [known limitations](docs/guide.md#known-limitations).
+**Server-side Auto mode checks** are disabled in the supplied configuration. Full safeguards compatibility, long sessions, credential refresh and Cowork remain untested. See [known limitations](docs/guide.md#known-limitations).
 
 </details>
 

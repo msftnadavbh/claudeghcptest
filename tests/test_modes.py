@@ -123,6 +123,20 @@ class ModeTests(unittest.TestCase):
         self.change("uninstall")
         self.assertEqual(modes.load(self.library)[0], {"custom": False})
 
+    def test_upgrade_from_string_model_list_reuses_owned_entry(self):
+        config = desktop.render(str(self.gh))
+        legacy = dict(config, inferenceModels=[m["name"] if isinstance(m, dict) else m
+                                               for m in config["inferenceModels"]])
+        self.seed()
+        with patch.object(desktop, "render", return_value=legacy):
+            self.change()
+        before, _ = modes.load(self.library)
+        path = self.library / (before["appliedId"] + ".json")
+        self.assertEqual(json.loads(path.read_text()), legacy)
+        self.change()
+        self.assertEqual(modes.load(self.library)[0], before)
+        self.assertEqual(json.loads(path.read_text()), config)
+
     def test_uninstall_preserves_new_foreign_entries(self):
         self.change()
         meta, _ = modes.load(self.library)
@@ -189,6 +203,8 @@ class ModeTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
         meta = json.loads((profile / "configLibrary/_meta.json").read_text())
         self.assertEqual(len(meta["entries"]), 2)
+        selected = profile / "configLibrary" / (meta["appliedId"] + ".json")
+        self.assertEqual(json.loads(selected.read_text()), desktop.render(str(self.gh)))
         result = self.run_command([str(ROOT / "install"), "--isolated", "--gh", str(self.gh)])
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue((self.home / "claude-ghcp-test/Isolated-3p/configLibrary/_meta.json").exists())

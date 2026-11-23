@@ -76,7 +76,19 @@ Provider discovery is disabled because Copilot's Anthropic-style `/v1/models` en
 | `claude-sonnet-5` | Sonnet 5 |
 | `claude-haiku-4.5` | claude-haiku-4.5 |
 
-All five IDs passed direct Messages requests; only Opus 5.5 was exercised in a Desktop conversation. Availability depends on your account and can change.
+All five IDs passed direct Messages requests. Desktop Chat was checked with Opus; Desktop Code turns completed with Opus, Haiku and Sonnet 5.5. Availability depends on your account and can change.
+
+### Claude Code tab commands
+
+Open **Code**, choose a local working folder, and start a conversation. The [model configuration](https://claude.com/docs/third-party/claude-desktop/models) assigns each 5.5 ID its `anthropicFamilyTier` and marks it `isFamilyDefault`. The first entry remains Opus. In a controlled Code engine test, these pins moved title generation from Opus to Haiku; you don't need to edit global Claude Code settings.
+
+| Command | Status | Notes |
+| --- | --- | --- |
+| `/btw` | Desktop side chat passed | From an existing Desktop thread press **Cmd+;** and ask about the main conversation. In testing the side chat correctly recalled a two-word answer. |
+| `/insights` | Works | Desktop analyzed sessions through Copilot. Use substantive local work sessions with at least two user messages spanning about a minute: even longer sessions can be excluded as warmups. Check the session count in `usage-data/report.html` under the active Code config directory. |
+| `/usage` or `/cost` | Desktop Usage opened | Shows device token usage. Desktop omits currency costs for provider billing; use GitHub for Copilot billing and plan limits. |
+
+See [validation by surface](validation.md#claude-code-tab-commands) for GUI and engine evidence. The graphical Code tab is not the terminal command interface.
 
 ### GitHub MCP
 
@@ -145,7 +157,7 @@ Isolated profiles are not complete security boundaries. Those log directories ar
 
 ## Known limitations
 
-Provider-side Auto mode checks are disabled (`inferenceGatewayAutoModeServerChecks: false`). A beta-header-only request does not establish full safeguards compatibility. Long sessions, credential refresh, large contexts, Desktop-initiated web search, and separate Code and Cowork tab workflows remain untested. The supported configuration is based on the tested Desktop version and may need updating as Desktop changes.
+Provider-side Auto mode checks are disabled (`inferenceGatewayAutoModeServerChecks: false`). A beta-header-only request does not establish full safeguards compatibility. Long sessions, credential refresh, large contexts, Desktop-initiated web search, Cowork and populated Desktop Code reports remain unverified. The supported configuration is based on the tested Desktop version and may need updating as Desktop changes.
 
 ## References
 

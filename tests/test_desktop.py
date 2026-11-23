@@ -80,7 +80,12 @@ class DesktopTests(unittest.TestCase):
         self.assertEqual(config["inferenceCredentialHelperArgs"], ["auth", "token", "--hostname", "github.com"])
         self.assertFalse(config["modelDiscoveryEnabled"])
         self.assertTrue(config["disableDeepLinkRegistration"])
-        self.assertEqual(len(config["inferenceModels"]), 5)
+        models = config["inferenceModels"]
+        self.assertEqual(models[3:], ["claude-sonnet-5", "claude-haiku-4.5"])
+        for entry, tier in zip(models[:3], ("opus", "sonnet", "haiku"), strict=True):
+            self.assertEqual(entry["name"], f"claude-{tier}-5.5")
+            self.assertEqual(entry["anthropicFamilyTier"], tier)
+            self.assertIs(entry["isFamilyDefault"], True)
         for path in (config["inferenceCredentialHelper"], config["managedMcpServers"][0]["headersHelper"]):
             self.assertTrue(Path(path).is_absolute() and os.access(path, os.X_OK))
         self.assertNotIn("fake-test-credential", result.stdout)
