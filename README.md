@@ -22,13 +22,15 @@ Use `./install --dry-run` to preview planned changes. Keep Desktop closed until 
 
 ## Claude Code tab
 
-**Model defaults.** Tier metadata for Opus, Sonnet, and Haiku 5.5 pins the Code tab defaults to their dotted GitHub Copilot model IDs. **Commands.** `/btw` works from Cmd+;, `/insights` can analyze eligible local work sessions, and common commands such as `/model`, `/compact`, `/context`, `/mcp`, `/status`, `/cost`, `/effort`, `/config`, `/permissions`, `/memory`, and `/resume` are available. `/usage` is SDK-only; `/hooks` is terminal-only; the old `/agents` wizard has been removed. Account and cloud-only commands are unavailable. Opus can encounter GitHub Copilot HTTP 429 rate limits. See the [command and validation details](docs/guide.md#claude-code-tab).
+**Model defaults.** Tier metadata for Opus, Sonnet, and Haiku 5.5 pins the Code tab defaults to their dotted GitHub Copilot model IDs.
+
+**Commands.** `/btw` opens a side chat with Cmd+;. `/insights` analyzes eligible local work sessions. `/model`, `/compact`, `/context`, `/mcp`, `/status`, `/cost`, `/effort`, `/config`, `/permissions`, `/memory`, and `/resume` are available. `/usage` is SDK-only; `/hooks` is terminal-only; the old `/agents` wizard has been removed. Account and cloud-only commands are unavailable. Opus can encounter GitHub Copilot HTTP 429 rate limits. See the [command and validation details](docs/guide.md#claude-code-tab).
 
 ## Privacy and safety
 
 Configuration rendering is local. Inference and MCP requests go to GitHub, and Desktop also fetches a hosted model catalog and runtime components, so network traffic is not limited to GitHub Copilot. Conversations and application diagnostics can contain sensitive content.
 
-**Scoped changes.** Default installation changes only `configLibrary` under `~/Library/Application Support/Claude-3p`. It makes private, timestamped backups, preserves other entries and metadata, and records recovery state. It does not change the first-party `Claude` profile or Claude Code settings. Installation refuses while Desktop is running or when managed (MDM) configuration exists. See [configuration and backups](docs/guide.md#configuration-and-backups).
+**Scoped changes.** Default installation changes only `configLibrary` under `~/Library/Application Support/Claude-3p`. It makes private, timestamped backups, preserves other entries and metadata, and records recovery state. It does not change the first-party `Claude` profile or Claude Code settings. Default-mode installation refuses while Desktop is running or when managed (MDM) configuration exists. Isolated mode does not check for MDM configuration; where `com.anthropic.claudefordesktop` managed settings exist under `/Library/Managed Preferences`, Desktop's managed tier takes precedence and isolated testing is not meaningful. See [configuration and backups](docs/guide.md#configuration-and-backups) and [isolated testing](docs/guide.md#isolated-testing).
 
 ## Undo and uninstall
 

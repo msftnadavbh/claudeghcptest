@@ -23,7 +23,7 @@ The installer targets `~/Library/Application Support/Claude-3p/configLibrary`, t
 ### Refusal conditions
 
 - Installation and removal refuse if the main Claude Desktop process is running against the default profile. The check recognizes renamed bundles and alternate installation paths; Helper-only processes are ignored. Ambiguous, unreadable, missing, repeated, or relative profile arguments fail closed. Explicit isolated processes using a different absolute `--user-data-dir` are allowed. The default base profile and its `-3p` variant are protected.
-- Both commands refuse if system or per-user managed preferences contain `com.anthropic.claudefordesktop.plist`. Managed settings override the local library; contact your administrator. There is no force option.
+- Default-mode `./install` and `./uninstall` refuse if system or per-user managed preferences contain `com.anthropic.claudefordesktop.plist`. Managed settings override the local library; contact your administrator. There is no force option.
 - `HOME` must be the account home for normal customer installation.
 
 ## Configuration and backups
@@ -75,7 +75,7 @@ The Code tab uses the same gateway configuration. The command table summarizes o
 | `/model` | Switches among configured models. |
 | `/compact`, `/context` | Available for conversation compaction and context information. |
 | `/mcp`, `/status` | Available; Desktop can show the managed GitHub MCP connection. |
-| `/cost` | Opens local usage information; it does not report Copilot billing costs. |
+| `/cost` | Desktop opens local Usage settings (SDK prints an estimated token cost); it is not Copilot billing. |
 | `/effort`, `/config`, `/permissions`, `/memory`, `/resume` | Available for session effort and local Code settings/actions. |
 | `/usage` | SDK-only in the tested engine; not verified as a Desktop command. |
 | `/hooks` | Terminal-only; Desktop directs users to Claude Code in a terminal. |
@@ -111,7 +111,7 @@ Use the optional mode for a separate test profile without changing the default-p
 ./install --isolated "$HOME/claude-ghcp-test/Isolated-3p"
 ```
 
-The default profile is `~/claude-ghcp-test/Isolated-3p`; custom profile directories must end in `-3p`. Real Claude Application Support profiles, shared Claude Code settings, and managed preferences are refused. Each isolated install creates a new UUID entry and backs up existing `_meta.json` when present. The legacy `scripts/install-isolated DIR` command remains available.
+The default profile is `~/claude-ghcp-test/Isolated-3p`; custom profile directories must end in `-3p`. Isolated mode rejects destinations under real Claude Application Support profiles, shared Claude Code settings, and `/Library/Managed Preferences`; it does not check whether MDM configuration exists. If `/Library/Managed Preferences` contains `com.anthropic.claudefordesktop` settings, Desktop's managed tier takes precedence over the isolated profile's local `configLibrary`, so isolated testing is not meaningful on that Mac. Each isolated install creates a new UUID entry and backs up existing `_meta.json` when present. The legacy `scripts/install-isolated DIR` command remains available.
 
 The lifecycle scripts expect the normal main Desktop at `/Applications/Claude.app` to remain running. Find its main process ID using Activity Monitor or `ps -axo pid,command`, then substitute it for `<normal-main-PID>`:
 

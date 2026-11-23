@@ -43,7 +43,7 @@ The Desktop Code tab was opened with Manual permissions and a local fixture. Its
 | `/mcp`, `/status` | Passed | MCP showed `github` as Web, Managed, Connected; status reflected the connection and managed settings. |
 | `/cost` | Passed | Opened local Usage settings, which omit provider-specific currency costs. |
 | `/effort`, `/config`, `/permissions`, `/memory`, `/resume` | Passed for observed action | Effort accepted a session override; other commands opened their corresponding local settings/list/dialog. No settings were changed and no session was resumed. |
-| `/usage` | SDK-only | Passed in SDK testing; not established as a Desktop command. |
+| `/usage` | SDK-only | Returned the same estimated cost output as `/cost`; not established as a Desktop command. |
 | `/hooks` | Terminal-only | Desktop directs users to Claude Code in a terminal. |
 | `/agents` | Removed | The tested embedded version displayed a removal notice for the old wizard. |
 | Account/cloud-only commands | Unavailable | These require first-party identity or Anthropic-hosted cloud features. |
@@ -89,7 +89,7 @@ HOME="/path/to/fresh-temp-home" GHCP_TEST_FORBID_REAL_HOME=1 \
   ./install --dry-run --sandbox-home --gh /path/to/fake-gh
 ```
 
-`--sandbox-home` rejects the account HOME and paths inside its Library. It treats unqualified Desktop launches as the OS account's app and still refuses an explicit launch targeting either sandbox config profile. `GHCP_TEST_FORBID_REAL_HOME` is a test-only guard against real account configuration locations, including resolved aliases. A temporary sandbox can be a separate directory under the account home if outside its Library.
+`--sandbox-home` rejects the account HOME and paths inside its Library. It treats unqualified Desktop launches as the OS account's app and still refuses an explicit launch targeting either sandbox config profile. This is separate from isolated profile installation: isolated mode checks that its destination is not under `/Library/Managed Preferences` but does not check for existing MDM configuration. If `/Library/Managed Preferences` contains `com.anthropic.claudefordesktop` settings, Desktop's managed tier takes precedence over the isolated profile's local `configLibrary`, making isolated testing not meaningful on that Mac. `GHCP_TEST_FORBID_REAL_HOME` is a test-only guard against real account configuration locations, including resolved aliases. A temporary sandbox can be a separate directory under the account home if outside its Library.
 
 `GHCP_TEST_HOME` is strictly test-only. It is honored only when it exactly matches `HOME` and `GHCP_TEST_FORBID_REAL_HOME=1` is also set; by itself it cannot redirect a customer invocation. The Python `sitecustomize.py` guard used by tests audits file access in the main process and Python subprocesses and requires subprocesses to retain the fixture HOME. These environment variables do not provide an OS-level security boundary.
 
