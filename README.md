@@ -1,88 +1,71 @@
-<p align="center"><strong>Claude Desktop on GitHub Copilot</strong> runs Claude Desktop through GitHub Copilot inference, using your GitHub CLI sign-in.</p>
+<p align="center"><strong>Claude Desktop on GitHub Copilot</strong> runs your installed Claude Desktop through GitHub Copilot inference.</p>
+<p align="center"><a href="#quickstart"><strong>Quickstart</strong></a> · <a href="docs/guide.md">Guide</a> · <a href="docs/validation.md">Validation</a></p>
 <p align="center"><a href="https://github.com/msftnadavbh/claudeghcptest/actions/workflows/tests.yml"><img alt="Tests on main" src="https://github.com/msftnadavbh/claudeghcptest/actions/workflows/tests.yml/badge.svg?branch=main"></a></p>
-<p align="center">Your installed Claude Desktop. Runtime credentials. Five Claude models.</p>
-<p align="center"><a href="#quickstart"><strong>Quickstart</strong></a> · <a href="docs/guide.md">Documentation</a> · <a href="docs/validation.md">Test results</a></p>
-
----
 
 ## Quickstart
 
-You need macOS, Claude Desktop, Python 3 (tested with 3.15), and GitHub CLI signed in to an account with Copilot inference access. Keep this checkout outside Desktop, Documents, Downloads, and cloud-synced folders. Run the commands from the checkout; the [setup guide](docs/guide.md#setup) explains prerequisites.
+Requires macOS, Claude Desktop, Python 3, GitHub CLI (`gh`), and an account with Copilot inference access. Keep this checkout in a stable location outside Desktop, Documents, Downloads, and cloud-synced folders.
 
-1. **Check your sign-in.** Run `gh auth status --hostname github.com`. If needed, run `gh auth login --hostname github.com` and choose the account you want to use.
-2. **Quit Claude Desktop and install.** Run `./install`. It checks your sign-in, backs up the existing config library, and selects GitHub Copilot for your installed Desktop.
-3. **Open Claude Desktop.** It starts in third-party mode on GitHub Copilot. Choose **Continue** if prompted, select a model, and chat.
+1. **Sign in to GitHub.** Run `gh auth status --hostname github.com`; if needed, sign in with `gh auth login --hostname github.com` and choose the account with Copilot access.
+2. **Quit Claude Desktop and install.** From this checkout run `./install`. It checks GitHub CLI authentication, backs up an existing `configLibrary`, and configures the GitHub Copilot entry in your installed Desktop's third-party profile.
+3. **Open Claude Desktop.** Choose **Continue** if prompted, select a model, and start a conversation.
 
-Use `./install --dry-run` to preview changes or `./install --help` for options. Keep Claude closed until installation finishes.
+Use `./install --dry-run` to preview planned changes. Keep Desktop closed until installation finishes. See the [setup guide](docs/guide.md#setup) for prerequisites and safeguards.
 
-## Use your existing sign-in
+## Use your GitHub sign-in
 
-**Gateway mode** sends inference to `https://api.githubcopilot.com` with bearer authentication. Desktop runs the absolute `gh` executable with a separate argument list to obtain credentials at runtime. Setup stores helper paths, not a token. There is no inference proxy or credential wrapper to keep running.
+**Runtime credentials.** Desktop obtains a GitHub token by running your absolute `gh` executable when needed. The configuration stores helper paths, not a token; no inference proxy or credential wrapper needs to run.
 
-## Choose a model and connect GitHub
+**Five models.** The model picker offers Opus 5.5, Sonnet 5.5, Haiku 5.5, Sonnet 5, and Haiku 4.5. Model availability depends on your account and may change.
 
-**The model picker** offers Opus 5.5, Sonnet 5.5, Haiku 5.5, Sonnet 5, and Haiku 4.5. The list is explicit because Copilot's Anthropic-style model discovery endpoint returns 404. All five IDs passed direct Messages API checks; an isolated Desktop conversation completed with Opus 5.5.
+**GitHub MCP.** A managed GitHub MCP server exposes the `web_search` toolset through a runtime headers helper.
 
-**GitHub MCP** connects to the read-only endpoint with a runtime headers helper and the `web_search` toolset. The Desktop connection and a direct web-search tool call passed. A web-search call initiated by a Desktop conversation has not yet been observed. See [test results](docs/validation.md) for the distinction between Desktop checks and direct API probes.
+## Claude Code tab
 
-## Claude Code tab commands
+**Model defaults.** Tier metadata for Opus, Sonnet, and Haiku 5.5 pins the Code tab defaults to their dotted GitHub Copilot model IDs.
 
-The gateway configuration maps `opus`, `sonnet`, and `haiku` to Copilot’s dotted 5.5 model IDs. Existing customers can quit Desktop, rerun `./install`, then reopen it. The installer backs up the previous `configLibrary` before updating the selected managed entry in place.
-
-| Command | Status | Notes |
-| --- | --- | --- |
-| `/btw` | Desktop side chat verified | **Cmd+;** opened a side chat that correctly recalled the main thread’s answer. |
-| `/insights` | Works | Desktop analyzed local sessions through Copilot. Reports exclude trivial warmups; a headless test with real work sessions produced a populated report. |
-| `/upgrade`, `/usage-credits` | N/A | These manage a Claude subscription, not a Copilot account. |
-
-See the [command results by surface](docs/validation.md#claude-code-tab-commands) before relying on a terminal command in Desktop.
+**Commands.** `/btw` opens a side chat with Cmd+;. `/insights` analyzes eligible local work sessions. `/model`, `/compact`, `/context`, `/mcp`, `/status`, `/cost`, `/effort`, `/config`, `/permissions`, `/memory`, and `/resume` are available. `/usage` is SDK-only; `/hooks` is terminal-only; the old `/agents` wizard has been removed. Account and cloud-only commands are unavailable. Opus can encounter GitHub Copilot HTTP 429 rate limits. See the [command and validation details](docs/guide.md#claude-code-tab).
 
 ## Privacy and safety
 
-Configuration rendering is local. Installation checks GitHub CLI credentials with output discarded; normal inference and MCP use send requests to GitHub. Desktop also fetches a hosted model catalog and runtime components, so **this is not a GHCP-only network configuration**. Credentials are not written into generated configuration, but conversations and application diagnostics can contain sensitive content.
+Configuration rendering is local. Inference and MCP requests go to GitHub, and Desktop also fetches a hosted model catalog and runtime components, so network traffic is not limited to GitHub Copilot. Conversations and application diagnostics can contain sensitive content.
 
-**Small, reversible configuration changes.** The installer changes only the `configLibrary` inside `~/Library/Application Support/Claude-3p`, with timestamped sibling backups. It preserves foreign entries and remembers the previous selection. Your first-party `Claude` profile, `claude_desktop_config.json`, and Claude Code settings are untouched. Managed (MDM) configurations cause installation to refuse. Running-app checks are snapshots: do not launch Desktop or edit its configuration during installation or removal. [The guide](docs/guide.md#privacy-and-network-boundaries) explains this residual race and the storage boundaries.
+**Scoped changes.** Default installation changes only `configLibrary` under `~/Library/Application Support/Claude-3p`. It makes private, timestamped backups, preserves other entries and metadata, and records recovery state. It does not change the first-party `Claude` profile or Claude Code settings. Default-mode installation refuses while Desktop is running or when managed (MDM) configuration exists. Isolated mode does not check for MDM configuration; where `com.anthropic.claudefordesktop` managed settings exist under `/Library/Managed Preferences`, Desktop's managed tier takes precedence and isolated testing is not meaningful. See [configuration and backups](docs/guide.md#configuration-and-backups) and [isolated testing](docs/guide.md#isolated-testing).
 
 ## Undo and uninstall
 
-Quit Claude Desktop, run **`./uninstall`**, then reopen it. This removes the entry created by this installer, preserves any later selection, and otherwise restores the previous selection if it still exists. Use `./uninstall --dry-run` to preview.
-
-Keep the checkout while Desktop uses its helper. See [undo and uninstall](docs/guide.md#undo-and-uninstall) for backups and cleanup.
+Quit Claude Desktop and run `./uninstall`. It removes only the GitHub Copilot entry and files. If GitHub Copilot remains selected, it restores the prior selection only when that entry and its file still exist; a later selection is kept. Backups remain available. Keep the checkout while Desktop uses its helper. See [undo and uninstall](docs/guide.md#undo-and-uninstall).
 
 ## Optional isolated test profile
 
-For testing alongside your normal app, use `./install --isolated [DIR]`. The default test directory is `~/claude-ghcp-test/Isolated-3p`; custom names must end in `-3p`. See the [isolated launch and stop instructions](docs/guide.md#isolated-testing).
+For a separate test profile alongside normal Desktop, use `./install --isolated [DIR]`. The default is `~/claude-ghcp-test/Isolated-3p`; a custom directory must end in `-3p`. See [isolated testing](docs/guide.md#isolated-testing) for launch and stop instructions.
 
 <details>
 <summary>Platform and version details</summary>
 
-Live checks used Claude Desktop **6.28899.6** on macOS with embedded Claude Code **2.1.330**. Default installation supports Desktop bundles in different locations; isolated lifecycle helpers target `/Applications/Claude.app`. Windows and Linux have not been tested. Python and GitHub CLI must also be available to Desktop's helper environment. Re-run installation if you move the checkout.
-
-**Server-side Auto mode checks** are disabled in the supplied configuration. Full safeguards compatibility, long sessions, credential refresh and Cowork remain untested. See [known limitations](docs/guide.md#known-limitations).
+Live checks used Claude Desktop **6.28899.6** on macOS with embedded Claude Code **2.1.330**. Default mode configures the installed Desktop in place. The optional isolated launch/stop helpers target `/Applications/Claude.app`. Windows and Linux are not supported or tested for Desktop operation. Re-run `./install` if the checkout moves so absolute helper paths are refreshed.
 
 </details>
 
 ## Documentation
 
-- [Setup, configuration, and troubleshooting](docs/guide.md)
-- [Validation record and test coverage](docs/validation.md)
+- [Setup, configuration, both modes, commands, troubleshooting, and limitations](docs/guide.md)
+- [Validation record and contributor test instructions](docs/validation.md)
 - [Configuration template](config/ghcp.json)
 
 ## Development
 
-The tooling uses Python's standard library. Offline tests use synthetic credentials, a temporary HOME for every test, sanitized subprocess environments, and a test-only guard against real-profile I/O.
+The tooling uses Python's standard library. Run the offline suite with `python3 -B -m unittest discover -s tests -v`. CI runs it on macOS and Ubuntu and checks tracked files for personal paths and credential patterns. Copilot coding agent setup steps install Python 3.12; repository-specific instructions are in [`.github/copilot-instructions.md`](.github/copilot-instructions.md).
 
 | Location | Purpose |
 | --- | --- |
-| `install`, `uninstall` | Customer entry points: configure installed Desktop and revert |
-| `scripts/config_modes.py` | Default-mode config-library merge, backups and guards |
-| `config/ghcp.json` | Flat Desktop gateway and MCP configuration template |
+| `install`, `uninstall` | Customer entry points for default-profile setup and removal |
+| `scripts/config_modes.py` | Default-mode merge, backup, state validation, and guards |
+| `config/ghcp.json` | Gateway models and managed GitHub MCP template |
 | `bin/ghcp-mcp-headers` | Runtime JSON headers helper for GitHub MCP |
-| `scripts/desktop.py` | Configuration rendering and isolated lifecycle utilities |
-| `scripts/render-config`, `scripts/install-isolated` | Render paths and install a separate config library |
-| `scripts/launch-isolated`, `scripts/stop-isolated` | Start and stop the isolated app |
-| `scripts/live-check.py` | Explicit live probes and masked evidence capture |
-| `tests/` | Offline tests and test-process safety guard |
-| `docs/` | User guide and validation summary |
-
-Maintainers need Python 3 (tested with 3.15) and Git for the offline suite; live validation additionally needs macOS, Claude Desktop, and an authorized GitHub CLI account. Run `python3 -B -m unittest discover -s tests -v` before submitting changes. Keep local profiles, raw diagnostic captures, credentials, and machine-specific inventories out of commits.
+| `scripts/desktop.py` | Rendering and isolated-profile lifecycle utilities |
+| `scripts/render-config`, `scripts/install-isolated` | Render configuration and install a separate profile |
+| `scripts/launch-isolated`, `scripts/stop-isolated` | Launch and stop the isolated app |
+| `scripts/live-check.py` | Opt-in live probes and masked evidence collection |
+| `tests/` | Offline tests and test-only profile-I/O guard |
+| `docs/` | Customer guide and validation record |

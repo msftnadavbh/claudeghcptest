@@ -1,44 +1,34 @@
 # Setup and configuration guide
 
-Switch your installed Claude Desktop to **third-party Gateway mode** using GitHub Copilot inference and your GitHub CLI sign-in. The [validation record](validation.md) distinguishes tested behavior from remaining limitations.
+This project configures a customer's installed Claude Desktop (macOS) to use GitHub Copilot inference through third-party Gateway mode. The normal mode updates only the `Claude-3p` config library in place. The optional isolated mode creates a separate test profile. The [validation record](validation.md) describes the scope and evidence for tested behavior.
 
 ## Setup
 
-You need macOS, Claude Desktop, Python **3 (tested with 3.15)** as `python3`, and GitHub CLI as `gh`, with Copilot inference access. Keep this checkout in a stable location such as `~/src/claude-ghcp-desktop`, outside Desktop, Documents, Downloads, iCloud Drive and CloudStorage: macOS privacy controls can block helpers there. Python must be available to Desktop's helper environment as well as your terminal.
+Requirements: macOS, Claude Desktop, Python 3 available as `python3`, GitHub CLI as `gh`, and a GitHub account with Copilot inference access. Keep the checkout in a stable location outside Desktop, Documents, Downloads, iCloud Drive, and CloudStorage because macOS privacy controls can block helper execution. Python must also be available to Desktop's helper environment.
 
-### 1. Select your GitHub account
+Run `gh auth status --hostname github.com`. If needed, use `gh auth login --hostname github.com`; for multiple accounts, select the intended one with `gh auth switch --hostname github.com --user USERNAME`.
 
-Run `gh auth status --hostname github.com`. If needed, sign in with `gh auth login --hostname github.com`. For multiple accounts:
-
-```sh
-gh auth switch --hostname github.com --user YOUR_GITHUB_USERNAME
-```
-
-The installer resolves an absolute executable path and checks `gh auth token --hostname github.com`, discarding stdout and stderr. Environment-token overrides still apply. Token retrieval does not prove inference entitlement. You can override executable discovery with `./install --gh /absolute/path/to/gh`.
-
-### 2. Quit Desktop and install
-
-From the checkout, run:
+Quit Claude Desktop and run from the checkout:
 
 ```sh
 ./install
 ```
 
-To see the planned paths, backup, complete configuration, merged metadata, and state without writing, use `./install --dry-run`. Dry-run still checks process state, MDM and authentication. Both entry points offer `--help`.
+The installer checks authentication by running `gh auth token --hostname github.com` with output discarded. The check confirms token access, not Copilot inference entitlement. If executable discovery finds the wrong `gh`, use `./install --gh /absolute/path/to/gh`; the path must be absolute, executable, and outside macOS protected folders. Run `./install --help` for all options.
 
-Only `~/Library/Application Support/Claude-3p/configLibrary` is configured. Desktop derives that location from its default user-data directory (`Claude`) plus `-3p`. The installer does not move, copy or replace your profile; it does not change the first-party `Claude` folder, either `claude_desktop_config.json`, `~/.claude`, or `~/.claude.json`. First-party history is not migrated into third-party mode.
+To inspect the exact proposed configuration, metadata, state, and paths without writing, run `./install --dry-run`. Dry-run still checks authentication, managed configuration, and whether Desktop is running. Keep Desktop closed until installation completes. Open it normally, choose **Continue** if prompted, then select a model.
 
-The installer refuses while a main Desktop process uses the default profile. It recognizes main executables in `/Applications`, your Applications folder, and renamed bundles or other installation locations. Explicit isolated instances using a different absolute `--user-data-dir` are allowed. Missing, repeated, relative or unreadable profile arguments fail closed; Helper-only process rows are ignored. Both the base default user-data path and its `-3p` variant are protected, including case aliases.
+The installer targets `~/Library/Application Support/Claude-3p/configLibrary`, the third-party config library derived from Desktop's default user-data directory plus `-3p`. It does not copy, move, or migrate first-party profile data, and does not change `claude_desktop_config.json`, `~/.claude`, or `~/.claude.json`.
 
-**MDM:** Installation and removal refuse if `/Library/Managed Preferences/com.anthropic.claudefordesktop.plist` or the corresponding per-user managed plist exists. Those settings override the local library; contact your administrator. There is no force override.
+### Refusal conditions
 
-### 3. Open Desktop
-
-Open Claude Desktop normally. It starts in third-party mode on GitHub Copilot. Choose **Continue** if prompted, pick a model and chat. Keep this checkout in place because its MCP helper is referenced by absolute path. Re-running `./install` updates this installer's existing UUID instead of adding another entry.
+- Installation and removal refuse if the main Claude Desktop process is running against the default profile. The check recognizes renamed bundles and alternate installation paths; Helper-only processes are ignored. Ambiguous, unreadable, missing, repeated, or relative profile arguments fail closed. Explicit isolated processes using a different absolute `--user-data-dir` are allowed. The default base profile and its `-3p` variant are protected.
+- Default-mode `./install` and `./uninstall` refuse if system or per-user managed preferences contain `com.anthropic.claudefordesktop.plist`. Managed settings override the local library; contact your administrator. There is no force option.
+- `HOME` must be the account home for normal customer installation.
 
 ## Configuration and backups
 
-The library contains:
+The default-mode library contains these files:
 
 ```text
 configLibrary/<uuid>.json
@@ -46,118 +36,115 @@ configLibrary/_meta.json
 configLibrary/.ghcp-state.json
 ```
 
-The UUID file contains flat settings rendered from `config/ghcp.json`. The installer preserves existing metadata fields and entries, adds or updates its GitHub Copilot entry, and selects it with `appliedId`. Existing fields on that entry are also preserved. Versioned state records its UUID, a matching metadata ownership marker, the canonical library path, known configuration hashes, the original selector (including whether it was absent), whether the library and metadata existed, the original backup path and UTC timestamp. UI entry renames and deletion are supported; a replaced/edited owned file, missing ownership marker, or corrupt/incomplete/copied/older-version state causes a clear refusal with a backup recovery pointer. State is not adopted by display name or silently migrated from older schemas. Do not edit or delete state while the installation is active; use config-library-only backup recovery if it is damaged.
+The UUID JSON is rendered from [`config/ghcp.json`](../config/ghcp.json), with absolute helper paths substituted. `_meta.json` retains unrelated fields and entries; the installer adds or updates its marked GitHub Copilot entry and sets `appliedId`. Existing fields on that managed entry are preserved. Re-running `./install` updates the same owned UUID, refreshes helper paths, and supports upgrading older string-only model entries to tier metadata.
 
-Before each modifying operation on an existing library, the whole small library is copied into a private `0700` sibling staging directory. Backup files and directories are fsynced before staging is renamed to `configLibrary.backup-<UTC>`, then the parent directory is fsynced before state references that backup. A `.partial-<uuid>` suffix marks an incomplete backup, never a completed recovery source; caught copy/sync failures remove staging. If the library was absent, state records that fact. Backups accumulate and are never automatically pruned. They may contain sensitive settings from other providers; keep them private and delete old backups deliberately when no longer needed. They are not whole-profile backups. Unsupported backup entries and symlinks cause refusal.
+Versioned state records ownership, library identity, configuration hashes, previous selector (including whether it was absent), initial library/metadata shape, and the original backup pointer and timestamp. The installer will not adopt state by display name or migrate unsupported state. Removal validates state strictly; missing ownership markers, invalid/corrupt/copied state, or an edited/replaced owned config cause refusal with a backup recovery pointer. Preserve the state file while this installation is active.
 
-JSON publication uses private `0600` temporary files, flush/fsync, and atomic replacement; caught serialization, sync and replacement failures clean up the temporary file. The library, metadata, state, owned configuration and their ancestors must not be symlinks. Installer/remover operations lock the library directory and recheck the running app and expected state/config/metadata bytes immediately before each publication, rejecting stale snapshots.
+Before each modifying operation on an existing library, the full library is copied to a private `0700` sibling staging directory and published as `configLibrary.backup-<UTC>`. Backup contents and directories are synchronized before staging is renamed; the parent is synchronized before state references the backup. Incomplete staging names use `.partial-<uuid>` and are not completed recovery sources. Backups accumulate on each install and uninstall and are never automatically pruned. They can contain sensitive settings from other providers. Unsupported entries and symlinks cause refusal.
 
-**Interruption recovery:** Installation fsyncs the library directory after publishing state, then after publishing the configuration, then after selecting it in metadata. Thus recovery state and config are ordered before the selector, subject to the filesystem/device honoring fsync. On removal, the selector change is synchronized first, then the owned-file deletion; state is retained until both are durable, then its removal is synchronized. An ordinary interruption between completed steps can be recovered by rerunning installation or removal while Desktop is closed. Missing owned files are supported and retries reuse the owned UUID. Tests inject failures and assert synchronization order; they do not simulate power loss or prove hardware persistence. There is no all-or-nothing multi-file transaction. Abrupt process death can leave private JSON temp files or partial backup directories: inspect and remove those explicitly after recovery rather than deleting arbitrary customer files automatically. A final interrupted empty-directory cleanup can leave an empty library.
+Writes use private `0600` temporary files, flush and sync file contents, and atomically replace destinations. Operations lock the library and recheck process state, symlinks, and expected bytes before publications. Publication order makes install state and configuration durable before selecting the entry. Removal synchronizes selector changes and owned-file deletion before removing state. These ordered writes support retries after ordinary interruptions, but there is no all-or-nothing multi-file transaction or guarantee against power-loss/device failures. Abrupt termination can leave temporary files or partial backup directories; inspect them after recovery rather than deleting customer files automatically. A final interruption can leave an empty library directory.
 
-**Residual race:** Desktop does not honor the installer's lock. Repeated running-app, symlink and byte-snapshot checks narrow but cannot eliminate a launch/editor/path-replacement race between a check and a write. Keep Desktop closed and avoid concurrent editors, automatic launches and restarts until the command finishes. If a snapshot/provenance mismatch is reported, inspect the retained backup instead of forcing an overwrite.
+There is a residual race: Desktop does not honor the installer lock, and checks cannot eliminate a concurrent launch, editor, or path replacement between verification and a write. Keep Desktop closed and avoid concurrent edits, automatic launches, or restarts throughout install/removal. If a snapshot or provenance mismatch occurs, inspect the backup; do not force an overwrite.
 
 ## How it works
 
-### Gateway and runtime credentials
+### Gateway, credentials, and models
 
-The base URL is `https://api.githubcopilot.com`, without `/v1`; Desktop appends `/v1/messages`. The configuration selects `inferenceProvider: "gateway"`, bearer authentication and `inferenceCredentialKind: "helper-script"`. Desktop spawns the absolute `gh` executable with `['auth', 'token', '--hostname', 'github.com']`. There is no inference proxy or shell credential wrapper. The helper timeout is 60 seconds and cache TTL is 3,600 seconds. Generated settings contain paths rather than tokens.
+The configuration selects `inferenceProvider: "gateway"`, bearer authentication, and `inferenceCredentialKind: "helper-script"` at `https://api.githubcopilot.com` without `/v1`; Desktop sends Messages requests under `/v1/messages`. It starts the absolute `gh` executable with separate arguments `auth`, `token`, `--hostname`, `github.com`. The helper timeout is 60 seconds and token cache TTL is 3,600 seconds. Generated settings contain paths, not credentials. Shell `ANTHROPIC_BASE_URL` or Claude Code `apiKeyHelper` settings alone do not configure Desktop's provider.
 
-Setting `ANTHROPIC_BASE_URL` in a shell or Claude Code's `apiKeyHelper` alone does not select Desktop's provider. The scripts do not install any Claude Code settings.
+Model discovery is disabled because the Copilot Anthropic-style `/v1/models` endpoint returns 404. The explicit `inferenceModels` list is:
 
-### Models
-
-Provider discovery is disabled because Copilot's Anthropic-style `/v1/models` endpoint returns 404. The explicit list is:
-
-| Model ID | Picker display observed |
+| Model ID | Claude Code family metadata |
 | --- | --- |
-| `claude-opus-5.5` | claude-opus-5.5 |
-| `claude-sonnet-5.5` | claude-sonnet-5.5 |
-| `claude-haiku-5.5` | claude-haiku-5.5 |
-| `claude-sonnet-5` | Sonnet 5 |
-| `claude-haiku-4.5` | claude-haiku-4.5 |
+| `claude-opus-5.5` | `anthropicFamilyTier: "opus"`, `isFamilyDefault: true` |
+| `claude-sonnet-5.5` | `anthropicFamilyTier: "sonnet"`, `isFamilyDefault: true` |
+| `claude-haiku-5.5` | `anthropicFamilyTier: "haiku"`, `isFamilyDefault: true` |
+| `claude-sonnet-5` | No family-default metadata |
+| `claude-haiku-4.5` | No family-default metadata |
 
-All five IDs passed direct Messages requests. Desktop Chat was checked with Opus; Desktop Code turns completed with Opus, Haiku and Sonnet 5.5. Availability depends on your account and can change.
+The three family defaults make Desktop's Code tab pin `ANTHROPIC_DEFAULT_OPUS_MODEL`, `ANTHROPIC_DEFAULT_SONNET_MODEL`, and `ANTHROPIC_DEFAULT_HAIKU_MODEL` to the dotted IDs `claude-opus-5.5`, `claude-sonnet-5.5`, and `claude-haiku-5.5`. This is supplied through `inferenceModels`; do not add global Claude Code settings. Availability is account-dependent. Opus requests may receive GitHub Copilot HTTP 429 rate limits.
 
-### Claude Code tab commands
+### Claude Code tab
 
-Open **Code**, choose a local working folder, and start a conversation. The [model configuration](https://claude.com/docs/third-party/claude-desktop/models) assigns each 5.5 ID its `anthropicFamilyTier` and marks it `isFamilyDefault`. The first entry remains Opus. With these pins configured, the headless lab observed Haiku handling session title generation and some WebFetch requests. You don't need to edit global Claude Code settings.
+The Code tab uses the same gateway configuration. The command table summarizes observed support for embedded Claude Code 2.1.330; command behavior can vary with later Desktop versions.
 
-| Command | Status | Notes |
-| --- | --- | --- |
-| `/btw` | Desktop side chat passed | From an existing Desktop thread press **Cmd+;** and ask about the main conversation. In testing the side chat correctly recalled a two-word answer. |
-| `/insights` | Works | Desktop analyzed sessions through Copilot. Use substantive local work sessions with at least two user messages spanning about a minute: even longer sessions can be excluded as warmups. Check the session count in `usage-data/report.html` under the active Code config directory. |
-| `/cost` | Desktop Usage opened | Shows device token usage. `/usage` was tested only in the SDK. Desktop omits currency costs for provider billing; use GitHub for Copilot billing and plan limits. |
+| Command or feature | Status and scope |
+| --- | --- |
+| `/btw` | Available from a Desktop conversation with **Cmd+;** side chat. It can use context from the main conversation. |
+| `/insights` | Available for local usage analysis. Eligibility filters out short or warmup sessions; use substantive work sessions for a populated report. |
+| `/model` | Switches among configured models. |
+| `/compact`, `/context` | Available for conversation compaction and context information. |
+| `/mcp`, `/status` | Available; Desktop can show the managed GitHub MCP connection. |
+| `/cost` | Desktop opens local Usage settings (SDK prints an estimated token cost); it is not Copilot billing. |
+| `/effort`, `/config`, `/permissions`, `/memory`, `/resume` | Available for session effort and local Code settings/actions. |
+| `/usage` | SDK-only in the tested engine; not verified as a Desktop command. |
+| `/hooks` | Terminal-only; Desktop directs users to Claude Code in a terminal. |
+| `/agents` | The old wizard has been removed in the tested embedded version. |
+| Account and cloud-only commands | Unavailable because they require first-party identity or Anthropic-hosted cloud services. |
 
-See [validation by surface](validation.md#claude-code-tab-commands) for GUI and engine evidence. The graphical Code tab is not the terminal command interface.
+`/insights` analyzes local usage and only includes eligible sessions in its final report. A successful command does not mean every session is included. See [validation](validation.md#claude-code-tab) for surface-specific evidence.
 
-### GitHub MCP
+### GitHub MCP server
 
-The managed HTTP server `github` uses `https://api.githubcopilot.com/mcp/readonly` and `X-MCP-Toolsets: web_search`. Desktop runs `bin/ghcp-mcp-headers` with the absolute `gh` path as its argument. It emits a JSON Authorization header and a fixed error if credentials cannot be obtained. Desktop accepted the local library as a managed source and connected with `auth: 'headers-helper'`. Direct web search passed; a Desktop-conversation-initiated search remains unobserved.
+`managedMcpServers` configures the managed HTTP server `github` at `https://api.githubcopilot.com/mcp/readonly`, with `X-MCP-Toolsets: web_search`. Desktop invokes the repository's `bin/ghcp-mcp-headers` helper, passing the absolute `gh` path; the helper returns an Authorization header at runtime. The connection and direct `web_search` tool call were tested. A web-search call initiated by a Desktop conversation has not been observed.
 
 ## Undo and uninstall
 
-Quit Desktop and run:
+Quit Desktop and optionally preview the removal:
 
 ```sh
 ./uninstall --dry-run
 ./uninstall
 ```
 
-Removal deletes this installer's UUID file and entry and preserves foreign entries and fields, including ones added later. It restores the original `appliedId` **only if the current selector still points to this installer's UUID**. A later foreign selection or deliberately cleared selector is preserved. Restoration requires the original entry and its configuration file still to exist; otherwise the selector is left absent and a clear note is printed, never a dangling original ID. An originally empty/absent selector also becomes absent. If the library was created by the installer and has become empty, it is removed. Backups remain. A previously absent selector does not imply all third-party mode inputs elsewhere have been removed.
+Run `./uninstall --help` for available options. Removal deletes only the owned GitHub Copilot config file and metadata entry, preserving foreign entries and fields. It restores the prior `appliedId` only if GitHub Copilot is still selected. A later selection or deliberately absent selector is preserved. The old selection is restored only if its entry and config file still exist; otherwise `appliedId` remains absent rather than pointing to a missing configuration. If the library was created by this installation and is empty after removal, it is deleted. Backups remain.
 
-There is no automatic whole-backup restore flag. For manual recovery, keep Desktop closed, inspect the backup path recorded in state, retain the current library separately, and restore **only the configLibrary folder** you intend to recover. Full-folder restoration intentionally discards changes made after that backup; ordinary `./uninstall` preserves other entries instead.
-
-Remove the checkout only after no installed configuration references its helper. Removing files does not revoke GitHub authentication or delete Desktop conversations.
+There is no automatic full-backup restore option. For manual recovery, keep Desktop closed, preserve the current library separately, and restore only the intended `configLibrary` backup. Whole-library restoration discards later changes. Remove the checkout only after no installed configuration references its MCP helper. Uninstall does not revoke GitHub CLI authentication or delete conversations.
 
 ## Isolated testing
 
-This secondary testing mode preserves the original separate-profile installation behavior:
+Use the optional mode for a separate test profile without changing the default-profile installation:
 
 ```sh
 ./install --isolated
-# Or choose a directory:
+# Or specify a separate profile directory:
 ./install --isolated "$HOME/claude-ghcp-test/Isolated-3p"
 ```
 
-The optional directory defaults to the path above and must end in `-3p`; normal Application Support Claude profiles and shared Claude Code configuration locations are refused. The legacy `scripts/install-isolated DIR` remains available. Unlike default mode, each isolated installation creates a new UUID, appends it to metadata and saves a metadata backup only if `_meta.json` already exists.
+The default profile is `~/claude-ghcp-test/Isolated-3p`; custom profile directories must end in `-3p`. Isolated mode rejects destinations under real Claude Application Support profiles, shared Claude Code settings, and `/Library/Managed Preferences`; it does not check whether MDM configuration exists. If `/Library/Managed Preferences` contains `com.anthropic.claudefordesktop` settings, Desktop's managed tier takes precedence over the isolated profile's local `configLibrary`, so isolated testing is not meaningful on that Mac. Each isolated install creates a new UUID entry and backs up existing `_meta.json` when present. The legacy `scripts/install-isolated DIR` command remains available.
 
-For lifecycle helpers, Desktop must be installed at `/Applications/Claude.app`, with your normal main instance already running. Find its PID in Activity Monitor or `ps -axo pid,command`; choose the main executable, not a Helper. Replace the placeholder:
+The lifecycle scripts expect the normal main Desktop at `/Applications/Claude.app` to remain running. Find its main process ID using Activity Monitor or `ps -axo pid,command`, then substitute it for `<normal-main-PID>`:
 
-```text
+```sh
 scripts/launch-isolated "$HOME/claude-ghcp-test/Isolated-3p" --protect-pid <normal-main-PID>
 scripts/stop-isolated "$HOME/claude-ghcp-test/Isolated-3p" --protect-pid <normal-main-PID> --dry-run
 scripts/stop-isolated "$HOME/claude-ghcp-test/Isolated-3p" --protect-pid <normal-main-PID>
 ```
 
-Launch uses `--user-data-dir=<profile>` and `CLAUDE_CONFIG_DIR=<profile>/claude-code`, strips inference environment overrides and prints the new main PID. Stop rechecks exact profile matches immediately before SIGTERM; it never force-kills. Guards compare the protected main PID/start time and one configuration-file checksum. After stopping, remove the test profile if its data is no longer needed. Default `./uninstall` is for the default installation, not isolated profile deletion.
-
-Desktop may ignore SIGTERM while a fresh profile is on its welcome screen. The shipped stop helper reports remaining processes instead of force-killing; verify the exact test instance before any manual shutdown. The supervised validation harness's separately authorized main-PID fallback is described in the [validation record](validation.md#default-mode-sandbox-validation).
-
-## Privacy and network boundaries
-
-Rendering is local; installation checks GitHub CLI credentials with output discarded. Inference and MCP send requests to GitHub. Desktop also refreshes a hosted model catalog and downloads runtime components, so this is **not GHCP-only network routing**.
-
-For the normal Desktop's third-party mode, look for startup diagnostics in **`~/Library/Logs/Claude-3p/main.log`**. A base user-data directory without a `-3p` suffix caused the tested build to select this log directory; the existing isolated launch with an already-suffixed directory used `~/Library/Logs/Claude/main.log` instead.
-
-Isolated profiles are not complete security boundaries. Those log directories are shared at the OS account level, and Desktop may also share Keychain state. Launcher stdout/stderr goes under the isolated profile's `logs` folder. Shared logs are not generally process-scoped; correlate timestamps and session details before drawing conclusions or sharing evidence. Neither the normal-profile checksum guard nor the sandbox validation inventories all profile files.
+Launch passes `--user-data-dir=<profile>`, sets `CLAUDE_CONFIG_DIR=<profile>/claude-code`, removes inference-related environment overrides, and writes launcher output under the profile's `logs` directory. Stop selects exact isolated-profile processes, rechecks before signaling, and uses SIGTERM only; it does not force-kill. It also checks the protected normal process identity, start time, and config checksum. If Desktop does not exit, inspect the exact test instance and shut it down deliberately. Remove test profile data manually when no longer needed. Default `./uninstall` manages the default installation, not isolated profile cleanup.
 
 ## Troubleshooting
 
 | Symptom | Action |
 | --- | --- |
-| Quit Desktop refusal | Quit the normal main instance and retry; leave it closed throughout the operation. |
-| Managed configuration refusal | Ask your administrator about the managed configuration. |
-| Authentication preflight fails | Sign in with `gh`, select the intended account and check token environment overrides. |
-| Helper works only in Terminal | Check absolute paths, executable permissions, Python availability and protected-folder restrictions. |
-| Empty picker | Check the selected UUID, five full model IDs and `modelDiscoveryEnabled: false`. |
-| Inference 401/403 | Check Copilot entitlement and the active GitHub account. |
-| Messages 404 | Use the gateway root URL without `/v1`. |
-| MCP fails | Check helper arguments, read-only URL, static toolset header and connection logs. |
-| Paths changed | Re-run `./install` to refresh absolute helper paths. |
+| Desktop-running refusal | Quit the normal main instance and retry; keep it closed until the command finishes. |
+| Managed configuration refusal | Ask your administrator about managed Desktop preferences. |
+| Authentication preflight fails | Sign in with `gh`, select the intended account, and check token environment overrides. |
+| Helper works only in Terminal | Check absolute helper paths, executable permissions, Python availability, and macOS protected-folder restrictions. Re-run install after moving the checkout. |
+| Empty model picker | Confirm the selected entry has the five full model IDs and `modelDiscoveryEnabled: false`. |
+| Inference 401/403 | Check the active GitHub account and Copilot inference entitlement. |
+| Inference 404 | Confirm the gateway base URL is `https://api.githubcopilot.com`, without `/v1`. |
+| Opus HTTP 429 | Copilot may be rate limiting Opus. Retry later or select another configured model. |
+| MCP connection failure | Check the managed server URL, helper path and arguments, and the `X-MCP-Toolsets: web_search` header. |
+| State or snapshot refusal | Keep the backup; investigate changed metadata/configuration before retrying. Do not edit the state file to bypass validation. |
 
-## Known limitations
+## Privacy, logs, and known limitations
 
-Provider-side Auto mode checks are disabled (`inferenceGatewayAutoModeServerChecks: false`). A beta-header-only request does not establish full safeguards compatibility. Long sessions, credential refresh, large contexts, Desktop-initiated web search, Cowork and populated Desktop Code reports remain unverified. The supported configuration is based on the tested Desktop version and may need updating as Desktop changes.
+Configuration rendering is local. GitHub CLI preflight output is discarded. Inference and MCP requests go to GitHub. Desktop also fetches a hosted model catalog and runtime components, so this is not GitHub-Copilot-only network traffic. Logs and conversations may contain sensitive content.
+
+For default mode, the tested Desktop build writes logs under `~/Library/Logs/Claude-3p/`, including `main.log`. Logs may be shared at the OS account level, and the optional isolated profile is not a complete security boundary; Desktop may share logs or Keychain state.
+
+Backups of an existing library accumulate on each modifying run and are not automatically pruned. The installer has residual races because Desktop does not honor its lock; do not run it while Desktop or another config editor can change the target. Tested versions are Claude Desktop **6.28899.6** and embedded Claude Code **2.1.330**. Other versions may behave differently. Server-side Auto-mode checks must remain disabled: GitHub Copilot rejects the `safeguards` field when those checks are enabled. Long-running sessions, credential refresh after expiry, large-context behavior, Cowork, and Desktop-conversation-initiated web search remain unverified. A populated Desktop Code `/insights` report has not been observed; the command's eligibility behavior is documented above.
 
 ## References
 
