@@ -1,4 +1,5 @@
 <p align="center"><strong>Claude Desktop on GitHub Copilot</strong> runs Claude Desktop through GitHub Copilot inference, using your GitHub CLI sign-in.</p>
+<p align="center"><a href="https://github.com/msftnadavbh/claudeghcptest/actions/workflows/tests.yml"><img alt="Tests on main" src="https://github.com/msftnadavbh/claudeghcptest/actions/workflows/tests.yml/badge.svg?branch=main"></a></p>
 <p align="center">Your installed Claude Desktop. Runtime credentials. Five Claude models.</p>
 <p align="center"><a href="#quickstart"><strong>Quickstart</strong></a> · <a href="docs/guide.md">Documentation</a> · <a href="docs/validation.md">Test results</a></p>
 
@@ -26,7 +27,7 @@ Use `./install --dry-run` to preview changes or `./install --help` for options. 
 
 ## Claude Code tab commands
 
-The gateway configuration maps `opus`, `sonnet`, and `haiku` to Copilot’s dotted 5.5 model IDs. Existing customers can quit Desktop, rerun `./install`, then reopen it. This updates the selected managed entry in place.
+The gateway configuration maps `opus`, `sonnet`, and `haiku` to Copilot’s dotted 5.5 model IDs. Existing customers can quit Desktop, rerun `./install`, then reopen it. The installer backs up the previous `configLibrary` before updating the selected managed entry in place.
 
 | Command | Status | Notes |
 | --- | --- | --- |

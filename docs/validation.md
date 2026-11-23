@@ -74,7 +74,9 @@ The isolated Desktop opened **Code** with Manual permissions and a local Git fix
 | `/remote-control`, `/voice`, `/upgrade`, `/usage-credits` | N/A | Require first-party identity or subscription services; a GHCP bearer does not supply them. |
 | Cloud sessions, `/schedule`, `/__remote-workflow`, Design consent | N/A | Require Anthropic-hosted services, remote execution, or Design authorization. Local `/loop` is distinct: it created an in-session schedule in the SDK lab. |
 
-The tier change affects routing. For example, automatic title generation used Opus without the pins and Haiku with them. Neither the successful side question nor the populated report required a new credential setting or Auto mode classifier override. With server-side Auto mode checks enabled, Copilot rejected the `safeguards` field (HTTP 400); the config retains `inferenceGatewayAutoModeServerChecks: false`. The lab also observed intermittent HTTP 429s on Opus during report generation. A later retry succeeded without changing the model configuration. See [gateway limitations](https://code.claude.com/docs/en/llm-gateway-connect) and [local report eligibility](https://code.claude.com/docs/en/costs#analyze-your-usage-patterns).
+In the headless lab with all three tier pins set, the session title request went to Haiku, and WebFetch made requests to both Haiku and Opus (cmdlab `REPORT.md`, “Session title” and “WebFetch” rows). The runs did not isolate the effect of individual pins.
+
+Neither the successful side question nor the populated report required a new credential setting or Auto mode classifier override. With server-side Auto mode checks enabled, Copilot rejected the `safeguards` field (HTTP 400); the config retains `inferenceGatewayAutoModeServerChecks: false`. The lab also observed intermittent HTTP 429s on Opus during report generation. A later retry succeeded without changing the model configuration. See [gateway limitations](https://code.claude.com/docs/en/llm-gateway-connect) and [local report eligibility](https://code.claude.com/docs/en/costs#analyze-your-usage-patterns).
 
 ## Direct API and MCP checks
 
