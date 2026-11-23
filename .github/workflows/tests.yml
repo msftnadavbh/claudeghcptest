@@ -1,0 +1,35 @@
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Check tracked files for local paths and credentials
+        shell: bash
+        run: |
+          # Character classes keep the pattern from matching itself. List filenames only.
+          if git grep -lE '/[U]sers/|gh[pousr]_[A-Za-z0-9]{20,}|github[_]pat_|sk[-]ant-' --; then
+            exit 1
+          else
+            test "$?" -eq 1  # No matches; any other git error fails the step.
+          fi
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.12'
+      - name: Run offline tests
+        run: python3 -B -m unittest discover -s tests -v

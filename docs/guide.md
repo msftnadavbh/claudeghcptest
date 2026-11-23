@@ -80,13 +80,13 @@ All five IDs passed direct Messages requests. Desktop Chat was checked with Opus
 
 ### Claude Code tab commands
 
-Open **Code**, choose a local working folder, and start a conversation. The [model configuration](https://claude.com/docs/third-party/claude-desktop/models) assigns each 5.5 ID its `anthropicFamilyTier` and marks it `isFamilyDefault`. The first entry remains Opus. In a controlled Code engine test, these pins moved title generation from Opus to Haiku; you don't need to edit global Claude Code settings.
+Open **Code**, choose a local working folder, and start a conversation. The [model configuration](https://claude.com/docs/third-party/claude-desktop/models) assigns each 5.5 ID its `anthropicFamilyTier` and marks it `isFamilyDefault`. The first entry remains Opus. With these pins configured, the headless lab observed Haiku handling session title generation and some WebFetch requests. You don't need to edit global Claude Code settings.
 
 | Command | Status | Notes |
 | --- | --- | --- |
 | `/btw` | Desktop side chat passed | From an existing Desktop thread press **Cmd+;** and ask about the main conversation. In testing the side chat correctly recalled a two-word answer. |
 | `/insights` | Works | Desktop analyzed sessions through Copilot. Use substantive local work sessions with at least two user messages spanning about a minute: even longer sessions can be excluded as warmups. Check the session count in `usage-data/report.html` under the active Code config directory. |
-| `/usage` or `/cost` | Desktop Usage opened | Shows device token usage. Desktop omits currency costs for provider billing; use GitHub for Copilot billing and plan limits. |
+| `/cost` | Desktop Usage opened | Shows device token usage. `/usage` was tested only in the SDK. Desktop omits currency costs for provider billing; use GitHub for Copilot billing and plan limits. |
 
 See [validation by surface](validation.md#claude-code-tab-commands) for GUI and engine evidence. The graphical Code tab is not the terminal command interface.
 
